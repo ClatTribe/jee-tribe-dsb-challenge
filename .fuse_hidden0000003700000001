@@ -1,0 +1,26 @@
+[debug] [2026-03-10T14:53:21.586Z] ----------------------------------------------------------------------
+[debug] [2026-03-10T14:53:21.587Z] Command:       /usr/bin/node /sessions/compassionate-gallant-bohr/.npm-global/bin/firebase deploy --only firestore:rules
+[debug] [2026-03-10T14:53:21.587Z] CLI Version:   15.9.1
+[debug] [2026-03-10T14:53:21.588Z] Platform:      linux
+[debug] [2026-03-10T14:53:21.588Z] Node Version:  v22.22.0
+[debug] [2026-03-10T14:53:21.588Z] Time:          Tue Mar 10 2026 20:23:21 GMT+0530 (India Standard Time)
+[debug] [2026-03-10T14:53:21.588Z] ----------------------------------------------------------------------
+[debug] 
+[debug] [2026-03-10T14:53:21.589Z] >>> [apiv2][query] GET https://firebase-public.firebaseio.com/cli.json [none]
+[debug] [2026-03-10T14:53:22.177Z] > command requires scopes: ["email","openid","https://www.googleapis.com/auth/cloudplatformprojects.readonly","https://www.googleapis.com/auth/firebase","https://www.googleapis.com/auth/cloud-platform"]
+[debug] [2026-03-10T14:53:22.191Z] Error: Could not load the default credentials. Browse to https://cloud.google.com/docs/authentication/getting-started for more information.
+    at GoogleAuth.getApplicationDefaultAsync (/sessions/compassionate-gallant-bohr/.npm-global/lib/node_modules/firebase-tools/node_modules/google-auth-library/build/src/auth/googleauth.js:287:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:105:5)
+    at async GoogleAuth._GoogleAuth_determineClient (/sessions/compassionate-gallant-bohr/.npm-global/lib/node_modules/firebase-tools/node_modules/google-auth-library/build/src/auth/googleauth.js:834:32)
+    at async GoogleAuth.getClient (/sessions/compassionate-gallant-bohr/.npm-global/lib/node_modules/firebase-tools/node_modules/google-auth-library/build/src/auth/googleauth.js:698:20)
+    at async GoogleAuth.getAccessToken (/sessions/compassionate-gallant-bohr/.npm-global/lib/node_modules/firebase-tools/node_modules/google-auth-library/build/src/auth/googleauth.js:722:24)
+    at async autoAuth (/sessions/compassionate-gallant-bohr/.npm-global/lib/node_modules/firebase-tools/lib/requireAuth.js:28:19)
+    at async requireAuth (/sessions/compassionate-gallant-bohr/.npm-global/lib/node_modules/firebase-tools/lib/requireAuth.js:90:20)
+    at async requirePermissions (/sessions/compassionate-gallant-bohr/.npm-global/lib/node_modules/firebase-tools/lib/requirePermissions.js:17:5)
+    at async /sessions/compassionate-gallant-bohr/.npm-global/lib/node_modules/firebase-tools/lib/command.js:264:17
+[error] 
+[error] Error: Failed to authenticate, have you run firebase login?
+[debug] [2026-03-10T14:53:22.194Z] <<< [apiv2][status] GET https://firebase-public.firebaseio.com/cli.json 403
+[debug] [2026-03-10T14:53:22.194Z] <<< [apiv2][body] GET https://firebase-public.firebaseio.com/cli.json "Connection blocked by network allowlist"
+[warn] ⚠  Unable to fetch the CLI MOTD and remote config. This is not a fatal error, but may indicate an issue with your network connection. 
+[debug] [2026-03-10T14:53:22.194Z] Failed to fetch MOTD FirebaseError: Unable to parse JSON: SyntaxError: Unexpected token 'C', "Connection"... is not valid JSON

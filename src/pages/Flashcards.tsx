@@ -68,16 +68,16 @@ const Flashcards = () => {
   const current = questions[currentIndex];
 
   return (
-    <div className="max-w-2xl mx-auto space-y-12 py-8 pb-20">
-      <div className="text-center space-y-4">
+    <div className="max-w-2xl mx-auto space-y-8 md:space-y-12 py-4 md:py-8 pb-20 px-4 md:px-0">
+      <div className="text-center space-y-3 md:space-y-4">
         <div className="inline-flex items-center gap-2 px-4 py-2 bg-secondary/10 text-secondary rounded-full text-[10px] font-black uppercase tracking-widest">
           <Zap size={14} /> Active Recall Mode
         </div>
-        <h1 className="text-4xl font-display font-black tracking-tight text-slate-900">Smart <span className="text-secondary">Flashcards</span></h1>
-        <p className="text-slate-500 font-medium">Quickly recall essential formulas and theorems.</p>
+        <h1 className="text-2xl md:text-4xl font-display font-black tracking-tight text-slate-900">Smart <span className="text-secondary">Flashcards</span></h1>
+        <p className="text-sm md:text-base text-slate-500 font-medium">Quickly recall essential formulas and theorems.</p>
       </div>
 
-      <div className="relative h-[450px] perspective-1000">
+      <div className="relative h-[380px] md:h-[450px] perspective-1000">
         <AnimatePresence mode="wait">
           <motion.div
             key={currentIndex}
@@ -96,7 +96,7 @@ const Flashcards = () => {
               }}
             >
               {/* Front */}
-              <div className="absolute inset-0 backface-hidden bg-white rounded-[3rem] border-2 border-slate-100 shadow-2xl p-12 flex flex-col items-center justify-center text-center space-y-8">
+              <div className="absolute inset-0 backface-hidden bg-white rounded-2xl md:rounded-[3rem] border-2 border-slate-100 shadow-2xl p-6 md:p-12 flex flex-col items-center justify-center text-center space-y-5 md:space-y-8">
                 <div className="flex items-center gap-3">
                   <span className={`text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${
                     current.subject === 'Physics' ? 'bg-blue-50 text-blue-600 border-blue-100' : 
@@ -106,7 +106,7 @@ const Flashcards = () => {
                   </span>
                   <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">{current.difficulty}</span>
                 </div>
-                <div className="text-3xl font-display font-black text-slate-800 leading-tight">
+                <div className="text-xl md:text-3xl font-display font-black text-slate-800 leading-tight">
                   <MathText text={current?.text || ''} block />
                 </div>
                 <div className="flex flex-col items-center gap-4">
@@ -127,8 +127,8 @@ const Flashcards = () => {
               </div>
 
               {/* Back */}
-              <div 
-                className="absolute inset-0 backface-hidden bg-dark-bg rounded-[3rem] shadow-2xl p-12 flex flex-col items-center justify-center text-center space-y-8 text-white border-4 border-secondary/20"
+              <div
+                className="absolute inset-0 backface-hidden bg-dark-bg rounded-2xl md:rounded-[3rem] shadow-2xl p-6 md:p-12 flex flex-col items-center justify-center text-center space-y-5 md:space-y-8 text-white border-4 border-secondary/20"
                 style={{ transform: 'rotateY(180deg)' }}
               >
                 <div className="text-2xl font-black">
@@ -149,7 +149,7 @@ const Flashcards = () => {
         </AnimatePresence>
       </div>
 
-      <div className="flex items-center justify-between px-8">
+      <div className="flex items-center justify-between px-2 md:px-8">
         <button 
           onClick={prevCard}
           className="p-5 rounded-3xl bg-white border-2 border-slate-100 text-slate-400 hover:text-secondary hover:border-secondary transition-all shadow-sm active:scale-95"
@@ -175,12 +175,13 @@ const Flashcards = () => {
         </button>
       </div>
 
-      <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 flex items-start gap-6 shadow-sm">
-        <div className="w-14 h-14 bg-secondary/10 rounded-2xl flex items-center justify-center text-secondary shadow-sm shrink-0">
-          <Book size={28} />
+      <div className="bg-white p-5 md:p-8 rounded-xl md:rounded-[2.5rem] border border-slate-200 flex items-start gap-4 md:gap-6 shadow-sm">
+        <div className="w-10 h-10 md:w-14 md:h-14 bg-secondary/10 rounded-xl md:rounded-2xl flex items-center justify-center text-secondary shadow-sm shrink-0">
+          <Book size={22} className="md:hidden" />
+          <Book size={28} className="hidden md:block" />
         </div>
-        <div className="space-y-2">
-          <h4 className="font-display font-black text-slate-900 text-lg uppercase tracking-tight">Recall Practice</h4>
+        <div className="space-y-1 md:space-y-2">
+          <h4 className="font-display font-black text-slate-900 text-base md:text-lg uppercase tracking-tight">Recall Practice</h4>
           <p className="text-sm text-slate-500 leading-relaxed font-medium">
             Active recall is the most effective way to memorize JEE formulas. Try to visualize the entire derivation before flipping the card.
           </p>

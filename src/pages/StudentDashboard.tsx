@@ -77,7 +77,7 @@ const StudentDashboard = () => {
   ];
 
   return (
-    <div className="space-y-8 pb-12">
+    <div className="space-y-5 md:space-y-8 pb-12 px-1 md:px-0">
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 relative z-10">
         <div className="space-y-2">
@@ -88,7 +88,7 @@ const StudentDashboard = () => {
           >
             <Target size={14} className="text-[#F59E0B]" /> Mission: JEE Tribe DSB
           </motion.div>
-          <h1 className="text-5xl md:text-6xl font-display font-black tracking-tighter text-slate-900 dark:text-white">
+          <h1 className="text-3xl md:text-6xl font-display font-black tracking-tighter text-slate-900 dark:text-white">
             Sup, <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-500">{profile?.displayName?.split(' ')[0]}</span>! ✨
           </h1>
           <p className="text-slate-500 dark:text-slate-400 font-medium text-lg">Only <span className="text-amber-500 dark:text-amber-400 font-bold">84 days</span> left. Let's get this bread. 🍞</p>
@@ -102,21 +102,22 @@ const StudentDashboard = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 relative z-10">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-6 relative z-10">
         {stats.map((stat, i) => (
           <motion.div
             key={i}
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1, type: "spring", stiffness: 100 }}
-            className="bg-white/80 dark:bg-white/5 backdrop-blur-xl p-6 rounded-[2rem] border border-slate-200/50 dark:border-white/5 shadow-lg shadow-slate-200/20 dark:shadow-none flex flex-col gap-4 group hover:border-amber-500/30 dark:hover:border-amber-500/30 transition-all hover:-translate-y-1"
+            className="bg-white/80 dark:bg-white/5 backdrop-blur-xl p-4 md:p-6 rounded-xl md:rounded-[2rem] border border-slate-200/50 dark:border-white/5 shadow-lg shadow-slate-200/20 dark:shadow-none flex flex-col gap-2 md:gap-4 group hover:border-amber-500/30 dark:hover:border-amber-500/30 transition-all hover:-translate-y-1"
           >
-            <div className={`w-14 h-14 ${stat.bg} ${stat.color} rounded-[1.5rem] flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
-              <stat.icon size={28} />
+            <div className={`w-10 h-10 md:w-14 md:h-14 ${stat.bg} ${stat.color} rounded-xl md:rounded-[1.5rem] flex items-center justify-center group-hover:scale-110 group-hover:rotate-3 transition-all duration-300`}>
+              <stat.icon size={20} className="md:hidden" />
+              <stat.icon size={28} className="hidden md:block" />
             </div>
             <div>
-              <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">{stat.label}</p>
-              <p className="text-3xl font-black text-slate-900 dark:text-white tracking-tight">{stat.value}</p>
+              <p className="text-[8px] md:text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5 md:mb-1">{stat.label}</p>
+              <p className="text-xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">{stat.value}</p>
             </div>
           </motion.div>
         ))}
@@ -129,7 +130,7 @@ const StudentDashboard = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="bg-[#060818] rounded-[2.5rem] p-8 md:p-12 text-white relative overflow-hidden shadow-2xl shadow-amber-500/10 border border-white/5"
+            className="bg-[#060818] rounded-xl md:rounded-[2.5rem] p-5 md:p-12 text-white relative overflow-hidden shadow-2xl shadow-amber-500/10 border border-white/5"
           >
             <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
               <div className="space-y-6 max-w-md">
@@ -149,11 +150,11 @@ const StudentDashboard = () => {
                   )}
                   <span className="text-white/40 text-xs font-bold">Director Special Batch Exclusive</span>
                 </motion.div>
-                <motion.h2 
+                <motion.h2
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.3 }}
-                  className="text-4xl md:text-5xl font-display font-black leading-tight"
+                  className="text-2xl md:text-5xl font-display font-black leading-tight"
                 >
                   <MathText text={challenge?.title || 'Daily DSB Challenge'} />
                 </motion.h2>
@@ -177,7 +178,7 @@ const StudentDashboard = () => {
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.5 }}
                   onClick={() => navigate(`/test/daily-mini-mock`)}
-                  className={`flex items-center gap-3 px-10 py-5 rounded-2xl font-black text-lg active:scale-95 ${
+                  className={`flex items-center gap-2 md:gap-3 px-6 md:px-10 py-4 md:py-5 rounded-xl md:rounded-2xl font-black text-sm md:text-lg active:scale-95 ${
                     hasAttemptedDaily 
                       ? 'bg-white/10 text-white/60 border border-white/10 hover:bg-white/20' 
                       : 'btn-liquid-secondary'
@@ -226,24 +227,27 @@ const StudentDashboard = () => {
 
           {/* Game Modes Grid */}
           <div className="relative z-10">
-            <h3 className="font-display font-black text-slate-900 dark:text-white flex items-center gap-2 mb-6 text-2xl tracking-tight">
-              <Zap size={28} className="text-amber-500" /> Training Modes
+            <h3 className="font-display font-black text-slate-900 dark:text-white flex items-center gap-2 mb-4 md:mb-6 text-xl md:text-2xl tracking-tight">
+              <Zap size={22} className="text-amber-500 md:hidden" />
+              <Zap size={28} className="text-amber-500 hidden md:block" />
+              Training Modes
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3 md:gap-4">
               {gameModes.map((mode, i) => (
-                <motion.button 
+                <motion.button
                   key={i}
                   whileHover={{ scale: 1.02, y: -4 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => navigate(mode.path)}
-                  className={`flex items-center gap-4 p-6 rounded-[2rem] border-2 border-slate-200/50 dark:border-white/5 hover:border-amber-500/30 dark:hover:border-amber-500/30 hover:shadow-xl transition-all text-left bg-white/80 dark:bg-white/5 backdrop-blur-xl group`}
+                  className={`flex flex-col md:flex-row items-center md:items-center gap-2 md:gap-4 p-4 md:p-6 rounded-xl md:rounded-[2rem] border-2 border-slate-200/50 dark:border-white/5 hover:border-amber-500/30 dark:hover:border-amber-500/30 hover:shadow-xl transition-all text-center md:text-left bg-white/80 dark:bg-white/5 backdrop-blur-xl group`}
                 >
-                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center shrink-0 ${mode.color} group-hover:rotate-6 transition-transform duration-300`}>
-                    <mode.icon size={28} />
+                  <div className={`w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center shrink-0 ${mode.color} group-hover:rotate-6 transition-transform duration-300`}>
+                    <mode.icon size={20} className="md:hidden" />
+                    <mode.icon size={28} className="hidden md:block" />
                   </div>
                   <div>
-                    <h4 className="font-black text-slate-900 dark:text-white text-lg tracking-tight">{mode.title}</h4>
-                    <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{mode.desc}</p>
+                    <h4 className="font-black text-slate-900 dark:text-white text-sm md:text-lg tracking-tight">{mode.title}</h4>
+                    <p className="text-[8px] md:text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{mode.desc}</p>
                   </div>
                 </motion.button>
               ))}
@@ -254,7 +258,7 @@ const StudentDashboard = () => {
         {/* Sidebar Column */}
         <div className="space-y-8 relative z-10">
           {/* Leaderboard Preview */}
-          <div className="bg-[#060818] rounded-[2.5rem] p-8 text-white shadow-2xl border border-white/5 relative overflow-hidden">
+          <div className="bg-[#060818] rounded-xl md:rounded-[2.5rem] p-5 md:p-8 text-white shadow-2xl border border-white/5 relative overflow-hidden">
             <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl" />
             <div className="flex items-center justify-between mb-8 relative z-10">
               <h3 className="text-2xl font-display font-black tracking-tight">Global Rank</h3>
@@ -300,7 +304,7 @@ const StudentDashboard = () => {
           </div>
 
           {/* Pro Tip */}
-          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-[2rem] p-6">
+          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl md:rounded-[2rem] p-4 md:p-6">
             <div className="flex items-center gap-3 mb-3">
               <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-white">
                 <Zap size={16} />

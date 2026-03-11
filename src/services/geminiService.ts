@@ -50,7 +50,7 @@ const SKIP_SOLVE_SCHEMA = {
 };
 
 export const generateQuestionsForDate = async (dateStr: string): Promise<DailyQuestions> => {
-  const model = "gemini-3.1-pro-preview";
+  const model = "gemini-2.5-flash-preview-05-20";
   const seed = parseInt(dateStr.replace(/-/g, ''));
   
   const prompt = `Generate a set of highly challenging JEE Mains level questions for a competitive exam platform. 
@@ -240,7 +240,7 @@ export const getDailyQuestions = async (): Promise<DailyQuestions> => {
 };
 
 export const extractQuestionFromImage = async (base64Data: string, mimeType: string) => {
-  const model = "gemini-3.1-pro-preview";
+  const model = "gemini-2.5-flash-preview-05-20";
   const prompt = `Extract the question from this image. Return a JSON object with:
   - subject: "Physics", "Chemistry", or "Mathematics"
   - questionType: "Single MCQ", "Multi MCQ", "Numerical", or "Fill in the Blanks"
@@ -266,7 +266,7 @@ export const extractQuestionFromImage = async (base64Data: string, mimeType: str
 };
 
 export const extractMultipleQuestionsFromDocument = async (base64Data: string, mimeType: string) => {
-  const model = "gemini-3.1-pro-preview";
+  const model = "gemini-2.5-flash-preview-05-20";
   const prompt = `Extract all questions from this document. Return a JSON array of objects, each with:
   - subject: "Physics", "Chemistry", or "Mathematics"
   - questionType: "Single MCQ", "Multi MCQ", "Numerical", or "Fill in the Blanks"

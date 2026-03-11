@@ -177,24 +177,27 @@ const SuddenDeath = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8 pb-12 px-6 relative z-10">
-      <div className="flex items-center justify-between bg-white/80 dark:bg-white/5 backdrop-blur-xl p-6 rounded-[2.5rem] border border-slate-200/50 dark:border-white/5 shadow-2xl shadow-slate-200/20 dark:shadow-none">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-rose-500/10 text-rose-500 rounded-2xl flex items-center justify-center shadow-inner">
-            <Skull size={28} />
+    <div className="max-w-3xl mx-auto space-y-5 md:space-y-8 pb-12 px-4 md:px-6 relative z-10">
+      <div className="flex items-center justify-between bg-white/80 dark:bg-white/5 backdrop-blur-xl p-4 md:p-6 rounded-xl md:rounded-[2.5rem] border border-slate-200/50 dark:border-white/5 shadow-2xl shadow-slate-200/20 dark:shadow-none gap-3">
+        <div className="flex items-center gap-3 md:gap-4">
+          <div className="w-10 h-10 md:w-14 md:h-14 bg-rose-500/10 text-rose-500 rounded-xl md:rounded-2xl flex items-center justify-center shadow-inner shrink-0">
+            <Skull size={20} className="md:hidden" />
+            <Skull size={28} className="hidden md:block" />
           </div>
           <div>
-            <h2 className="font-display font-black text-2xl text-slate-900 dark:text-white tracking-tight">Sudden Death</h2>
-            <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">1 Mistake = Game Over 💀</p>
+            <h2 className="font-display font-black text-lg md:text-2xl text-slate-900 dark:text-white tracking-tight">Sudden Death</h2>
+            <p className="text-[8px] md:text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">1 Mistake = Game Over</p>
           </div>
         </div>
-        <div className="text-right">
-          <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Time Left</p>
-          <p className={`text-3xl font-black tracking-tighter ${timeLeft < 60 ? 'text-rose-500 animate-pulse' : 'text-slate-900 dark:text-white'}`}>{formatTime(timeLeft)}</p>
-        </div>
-        <div className="text-right">
-          <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Current Streak</p>
-          <p className="text-3xl font-black text-rose-500 tracking-tighter">{score / 10}</p>
+        <div className="flex items-center gap-4 md:gap-6">
+          <div className="text-right">
+            <p className="text-[8px] md:text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Time</p>
+            <p className={`text-xl md:text-3xl font-black tracking-tighter ${timeLeft < 60 ? 'text-rose-500 animate-pulse' : 'text-slate-900 dark:text-white'}`}>{formatTime(timeLeft)}</p>
+          </div>
+          <div className="text-right">
+            <p className="text-[8px] md:text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Streak</p>
+            <p className="text-xl md:text-3xl font-black text-rose-500 tracking-tighter">{score / 10}</p>
+          </div>
         </div>
       </div>
 
@@ -204,13 +207,13 @@ const SuddenDeath = () => {
           initial={{ opacity: 0, x: 20 }}
           animate={{ opacity: 1, x: 0 }}
           exit={{ opacity: 0, x: -20 }}
-          className="bg-white dark:bg-white/5 p-8 md:p-12 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl relative overflow-hidden"
+          className="bg-white dark:bg-white/5 p-5 md:p-12 rounded-xl md:rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl relative overflow-hidden"
         >
           <div className="absolute top-8 left-8 flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-white/5 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-500">
             <Zap size={12} className="text-amber-500" /> Question {currentIndex + 1}
           </div>
 
-          <div className="text-2xl md:text-3xl font-display font-bold text-slate-900 dark:text-white leading-relaxed mb-12 pt-8">
+          <div className="text-lg md:text-3xl font-display font-bold text-slate-900 dark:text-white leading-relaxed mb-6 md:mb-12 pt-6 md:pt-8">
             <MathText text={currentQuestion?.text || ''} block />
           </div>
 
@@ -232,7 +235,7 @@ const SuddenDeath = () => {
                   key={i}
                   onClick={() => handleAnswer(i)}
                   disabled={selectedOption !== null}
-                  className={`w-full text-left p-6 rounded-2xl border-2 transition-all font-medium text-lg flex items-center gap-4 ${btnClass}`}
+                  className={`w-full text-left p-4 md:p-6 rounded-xl md:rounded-2xl border-2 transition-all font-medium text-sm md:text-lg flex items-center gap-3 md:gap-4 ${btnClass}`}
                 >
                   <div className={`w-8 h-8 rounded-lg flex items-center justify-center text-sm font-black shrink-0 ${selectedOption !== null && i === currentQuestion.correct ? 'bg-emerald-500 text-white' : selectedOption === i ? 'bg-rose-500 text-white' : 'bg-slate-100 dark:bg-white/5 text-slate-500'}`}>
                     {String.fromCharCode(65 + i)}

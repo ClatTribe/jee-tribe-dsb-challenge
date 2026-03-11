@@ -135,21 +135,21 @@ const DuelArena = () => {
   const currentQuestion = questions[currentIndex];
 
   return (
-    <div className="max-w-5xl mx-auto space-y-8 pb-12">
-      {/* Duel Header */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-center">
+    <div className="max-w-5xl mx-auto space-y-5 md:space-y-8 pb-12 px-2 md:px-0">
+      {/* Duel Header - Mobile: compact row, Desktop: 3 columns */}
+      <div className="grid grid-cols-3 md:grid-cols-3 gap-2 md:gap-6 items-center">
         {/* User Info */}
-        <div className="bg-white/80 dark:bg-white/5 backdrop-blur-xl p-4 rounded-3xl border border-slate-200/50 dark:border-white/5 flex items-center gap-4">
-          <div className="w-12 h-12 bg-amber-500 text-[#060818] rounded-2xl flex items-center justify-center font-black shadow-lg">
+        <div className="bg-white/80 dark:bg-white/5 backdrop-blur-xl p-3 md:p-4 rounded-xl md:rounded-3xl border border-slate-200/50 dark:border-white/5 flex items-center gap-2 md:gap-4">
+          <div className="w-8 h-8 md:w-12 md:h-12 bg-amber-500 text-[#060818] rounded-lg md:rounded-2xl flex items-center justify-center font-black text-xs md:text-base shadow-lg shrink-0">
             {profile?.displayName?.substring(0, 2).toUpperCase() || 'ME'}
           </div>
-          <div className="flex-1">
-            <div className="flex justify-between items-end mb-1">
-              <span className="text-sm font-black text-slate-900 dark:text-white">You</span>
-              <span className="text-xs font-black text-amber-500">{userScore} PTS</span>
+          <div className="flex-1 min-w-0">
+            <div className="flex justify-between items-end mb-0.5 md:mb-1">
+              <span className="text-[10px] md:text-sm font-black text-slate-900 dark:text-white truncate">You</span>
+              <span className="text-[10px] md:text-xs font-black text-amber-500">{userScore}</span>
             </div>
-            <div className="h-2 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
-              <motion.div 
+            <div className="h-1.5 md:h-2 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
+              <motion.div
                 className="h-full bg-amber-500"
                 animate={{ width: `${(currentIndex / questions.length) * 100}%` }}
               />
@@ -158,12 +158,14 @@ const DuelArena = () => {
         </div>
 
         {/* Timer & VS */}
-        <div className="flex flex-col items-center justify-center gap-2">
-          <div className="px-6 py-2 bg-[#060818] text-white rounded-full flex items-center gap-2 shadow-xl border border-white/5">
-            <Clock size={16} className="text-amber-500" />
-            <span className="font-mono font-black text-lg">{timeLeft}s</span>
+        <div className="flex flex-col items-center justify-center gap-1 md:gap-2">
+          <div className="px-3 md:px-6 py-1.5 md:py-2 bg-[#060818] text-white rounded-full flex items-center gap-1.5 md:gap-2 shadow-xl border border-white/5">
+            <Clock size={12} className="text-amber-500 md:hidden" />
+            <Clock size={16} className="text-amber-500 hidden md:block" />
+            <span className="font-mono font-black text-sm md:text-lg">{timeLeft}s</span>
           </div>
-          <div className="flex items-center gap-4">
+          <Swords size={16} className="text-slate-400 md:hidden" />
+          <div className="hidden md:flex items-center gap-4">
             <div className="h-px w-12 bg-slate-200 dark:bg-white/5" />
             <Swords size={20} className="text-slate-400" />
             <div className="h-px w-12 bg-slate-200 dark:bg-white/5" />
@@ -171,20 +173,20 @@ const DuelArena = () => {
         </div>
 
         {/* Opponent Info */}
-        <div className="bg-white/80 dark:bg-white/5 backdrop-blur-xl p-4 rounded-3xl border border-slate-200/50 dark:border-white/5 flex items-center gap-4">
-          <div className="flex-1">
-            <div className="flex justify-between items-end mb-1">
-              <span className="text-xs font-black text-orange-500">{opponentScore} PTS</span>
-              <span className="text-sm font-black text-slate-900 dark:text-white">{opponentName}</span>
+        <div className="bg-white/80 dark:bg-white/5 backdrop-blur-xl p-3 md:p-4 rounded-xl md:rounded-3xl border border-slate-200/50 dark:border-white/5 flex items-center gap-2 md:gap-4">
+          <div className="flex-1 min-w-0">
+            <div className="flex justify-between items-end mb-0.5 md:mb-1">
+              <span className="text-[10px] md:text-xs font-black text-orange-500">{opponentScore}</span>
+              <span className="text-[10px] md:text-sm font-black text-slate-900 dark:text-white truncate">{opponentName.split('_')[0]}</span>
             </div>
-            <div className="h-2 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
-              <motion.div 
+            <div className="h-1.5 md:h-2 bg-slate-100 dark:bg-white/5 rounded-full overflow-hidden">
+              <motion.div
                 className="h-full bg-orange-500"
                 animate={{ width: `${opponentProgress}%` }}
               />
             </div>
           </div>
-          <div className="w-12 h-12 bg-orange-500 text-[#060818] rounded-2xl flex items-center justify-center font-black shadow-lg">
+          <div className="w-8 h-8 md:w-12 md:h-12 bg-orange-500 text-[#060818] rounded-lg md:rounded-2xl flex items-center justify-center font-black text-xs md:text-base shadow-lg shrink-0">
             {opponentName.substring(0, 2).toUpperCase()}
           </div>
         </div>
@@ -197,13 +199,13 @@ const DuelArena = () => {
             key={currentIndex}
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            className="bg-white dark:bg-white/5 p-8 md:p-12 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl min-h-[400px] flex flex-col justify-center relative overflow-hidden"
+            className="bg-white dark:bg-white/5 p-5 md:p-12 rounded-xl md:rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl min-h-[300px] md:min-h-[400px] flex flex-col justify-center relative overflow-hidden"
           >
             <div className="absolute top-8 left-8 flex items-center gap-2 px-3 py-1 bg-slate-100 dark:bg-white/5 rounded-full text-[10px] font-black uppercase tracking-widest text-slate-500">
               <Zap size={12} className="text-amber-500" /> Question {currentIndex + 1} of {questions.length}
             </div>
 
-            <div className="text-2xl md:text-3xl font-display font-bold text-slate-900 dark:text-white leading-relaxed mb-12">
+            <div className="text-lg md:text-3xl font-display font-bold text-slate-900 dark:text-white leading-relaxed mb-6 md:mb-12">
               <MathText text={currentQuestion.text} block />
             </div>
 
@@ -213,7 +215,7 @@ const DuelArena = () => {
                   key={i}
                   onClick={() => handleAnswer(i)}
                   disabled={selectedOption !== null}
-                  className={`p-6 rounded-2xl border-2 text-left transition-all duration-300 flex items-center justify-between group ${
+                  className={`p-4 md:p-6 rounded-xl md:rounded-2xl border-2 text-left transition-all duration-300 flex items-center justify-between group ${
                     selectedOption === i
                       ? i === currentQuestion.correct
                         ? 'bg-emerald-500/10 border-emerald-500 text-emerald-600'
@@ -221,7 +223,7 @@ const DuelArena = () => {
                       : 'bg-white dark:bg-white/5 border-slate-100 dark:border-white/5 hover:border-amber-500/50 hover:bg-amber-500/5'
                   }`}
                 >
-                  <span className="font-bold text-lg"><MathText text={option} /></span>
+                  <span className="font-bold text-sm md:text-lg"><MathText text={option} /></span>
                   <div className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-colors ${
                     selectedOption === i ? 'border-current' : 'border-slate-200 dark:border-slate-600 group-hover:border-amber-500/50'
                   }`}>
@@ -235,7 +237,7 @@ const DuelArena = () => {
 
         {/* Sidebar */}
         <div className="space-y-6">
-          <div className="bg-[#060818] p-8 rounded-[2.5rem] text-white shadow-2xl border border-white/5">
+          <div className="bg-[#060818] p-5 md:p-8 rounded-xl md:rounded-[2.5rem] text-white shadow-2xl border border-white/5">
             <h3 className="text-lg font-display font-black mb-6 flex items-center gap-2">
               <Shield size={20} className="text-amber-500" /> Battle Intel
             </h3>
@@ -272,14 +274,15 @@ const DuelArena = () => {
             <motion.div 
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
-              className="bg-white dark:bg-[#060818] p-12 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl max-w-lg w-full text-center space-y-8"
+              className="bg-white dark:bg-[#060818] p-6 md:p-12 rounded-2xl md:rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl max-w-lg w-full text-center space-y-5 md:space-y-8"
             >
-              <div className="w-24 h-24 bg-amber-500/10 text-amber-500 rounded-[2rem] flex items-center justify-center mx-auto">
-                <Trophy size={48} />
+              <div className="w-16 h-16 md:w-24 md:h-24 bg-amber-500/10 text-amber-500 rounded-2xl md:rounded-[2rem] flex items-center justify-center mx-auto">
+                <Trophy size={32} className="md:hidden" />
+                <Trophy size={48} className="hidden md:block" />
               </div>
-              
+
               <div className="space-y-2">
-                <h2 className="text-4xl font-display font-black text-slate-900 dark:text-white">Duel Finished!</h2>
+                <h2 className="text-2xl md:text-4xl font-display font-black text-slate-900 dark:text-white">Duel Finished!</h2>
                 <p className="text-slate-500 dark:text-slate-400 font-medium">The battle has concluded. Here are the results:</p>
               </div>
 

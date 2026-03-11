@@ -160,20 +160,21 @@ const SkipStrategy = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto space-y-8 pb-12 px-6 relative z-10">
-      <div className="flex items-center justify-between bg-white/80 dark:bg-white/5 backdrop-blur-xl p-6 rounded-[2.5rem] border border-slate-200/50 dark:border-white/5 shadow-2xl shadow-slate-200/20 dark:shadow-none">
-        <div className="flex items-center gap-4">
-          <div className="w-14 h-14 bg-amber-500/10 text-amber-500 rounded-2xl flex items-center justify-center shadow-inner">
-            <FastForward size={28} />
+    <div className="max-w-3xl mx-auto space-y-5 md:space-y-8 pb-12 px-4 md:px-6 relative z-10">
+      <div className="flex items-center justify-between bg-white/80 dark:bg-white/5 backdrop-blur-xl p-4 md:p-6 rounded-xl md:rounded-[2.5rem] border border-slate-200/50 dark:border-white/5 shadow-2xl shadow-slate-200/20 dark:shadow-none">
+        <div className="flex items-center gap-3 md:gap-4">
+          <div className="w-10 h-10 md:w-14 md:h-14 bg-amber-500/10 text-amber-500 rounded-xl md:rounded-2xl flex items-center justify-center shadow-inner shrink-0">
+            <FastForward size={20} className="md:hidden" />
+            <FastForward size={28} className="hidden md:block" />
           </div>
           <div>
-            <h2 className="font-display font-black text-2xl text-slate-900 dark:text-white tracking-tight">Skip or Solve</h2>
-            <p className="text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Identify Traps ⚡</p>
+            <h2 className="font-display font-black text-lg md:text-2xl text-slate-900 dark:text-white tracking-tight">Skip or Solve</h2>
+            <p className="text-[8px] md:text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">Identify Traps</p>
           </div>
         </div>
         <div className="text-right">
-          <p className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-1">Time Left</p>
-          <p className={`text-3xl font-black tracking-tighter ${timeLeft < 4 ? 'text-rose-500 animate-pulse' : 'text-emerald-500'}`}>{timeLeft}s</p>
+          <p className="text-[8px] md:text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5">Time</p>
+          <p className={`text-xl md:text-3xl font-black tracking-tighter ${timeLeft < 4 ? 'text-rose-500 animate-pulse' : 'text-emerald-500'}`}>{timeLeft}s</p>
         </div>
       </div>
 
@@ -183,7 +184,7 @@ const SkipStrategy = () => {
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           exit={{ opacity: 0, scale: 0.95 }}
-          className="bg-white dark:bg-white/5 p-8 md:p-12 rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl relative overflow-hidden space-y-8"
+          className="bg-white dark:bg-white/5 p-5 md:p-12 rounded-xl md:rounded-[3rem] border border-slate-200 dark:border-white/5 shadow-2xl relative overflow-hidden space-y-5 md:space-y-8"
         >
           {/* Timer Bar */}
           <div className="absolute top-0 left-0 w-full h-2 bg-slate-100 dark:bg-white/5">
@@ -204,7 +205,7 @@ const SkipStrategy = () => {
             </div>
           </div>
           
-          <div className="text-2xl md:text-3xl font-display font-bold text-slate-900 dark:text-white leading-relaxed min-h-[120px]">
+          <div className="text-lg md:text-3xl font-display font-bold text-slate-900 dark:text-white leading-relaxed min-h-[80px] md:min-h-[120px]">
             <MathText text={currentQuestion?.text || ''} block />
           </div>
 
@@ -225,22 +226,24 @@ const SkipStrategy = () => {
               </div>
             </motion.div>
           ) : (
-            <div className="grid grid-cols-2 gap-6 pt-8">
+            <div className="grid grid-cols-2 gap-3 md:gap-6 pt-4 md:pt-8">
               <button
                 onClick={() => handleChoice('skip')}
-                className="p-8 rounded-3xl border-2 border-rose-500/20 bg-rose-500/5 text-rose-600 hover:bg-rose-500/10 hover:border-rose-500 transition-all font-black text-xl uppercase tracking-widest flex flex-col items-center gap-4 active:scale-95 group shadow-lg shadow-rose-500/5"
+                className="p-5 md:p-8 rounded-2xl md:rounded-3xl border-2 border-rose-500/20 bg-rose-500/5 text-rose-600 hover:bg-rose-500/10 hover:border-rose-500 transition-all font-black text-base md:text-xl uppercase tracking-widest flex flex-col items-center gap-3 md:gap-4 active:scale-95 group shadow-lg shadow-rose-500/5"
               >
-                <div className="w-16 h-16 bg-rose-500 text-white rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-6 transition-transform">
-                  <FastForward size={32} />
+                <div className="w-12 h-12 md:w-16 md:h-16 bg-rose-500 text-white rounded-xl md:rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:rotate-6 transition-transform">
+                  <FastForward size={24} className="md:hidden" />
+                  <FastForward size={32} className="hidden md:block" />
                 </div>
                 Skip It
               </button>
               <button
                 onClick={() => handleChoice('solve')}
-                className="p-8 rounded-3xl border-2 border-emerald-500/20 bg-emerald-500/5 text-emerald-600 hover:bg-emerald-500/10 hover:border-emerald-500 transition-all font-black text-xl uppercase tracking-widest flex flex-col items-center gap-4 active:scale-95 group shadow-lg shadow-emerald-500/5"
+                className="p-5 md:p-8 rounded-2xl md:rounded-3xl border-2 border-emerald-500/20 bg-emerald-500/5 text-emerald-600 hover:bg-emerald-500/10 hover:border-emerald-500 transition-all font-black text-base md:text-xl uppercase tracking-widest flex flex-col items-center gap-3 md:gap-4 active:scale-95 group shadow-lg shadow-emerald-500/5"
               >
-                <div className="w-16 h-16 bg-emerald-500 text-white rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:-rotate-6 transition-transform">
-                  <Zap size={32} />
+                <div className="w-12 h-12 md:w-16 md:h-16 bg-emerald-500 text-white rounded-xl md:rounded-2xl flex items-center justify-center group-hover:scale-110 group-hover:-rotate-6 transition-transform">
+                  <Zap size={24} className="md:hidden" />
+                  <Zap size={32} className="hidden md:block" />
                 </div>
                 Solve It
               </button>

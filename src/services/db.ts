@@ -17,6 +17,9 @@ import {
 } from 'firebase/firestore';
 import { db } from '../firebase';
 import { Question, Submission, evaluateSubmission, TestResult } from '../utils/evaluationUtils';
+import { updateStreakSmart } from './streakService';
+import { getStreakMultiplier, calculateCoinsEarned } from './gamificationService';
+import { updateStudentElo, getDefaultEloRatings, difficultyToElo, EloRatings } from './eloService';
 
 export interface Duel {
   id: string;
@@ -165,32 +168,58 @@ export const submitChallenge = async (
     const userSnap = await getDoc(userRef);
     const userData = userSnap.data();
     
-    const today = new Date().toISOString().split('T')[0];
-    const lastActive = userData?.lastActiveDate;
-    
-    let streakUpdate = {};
-    if (lastActive !== today) {
-      const yesterday = new Date();
-      yesterday.setDate(yesterday.getDate() - 1);
-      const yesterdayStr = yesterday.toISOString().split('T')[0];
-      
-      if (lastActive === yesterdayStr) {
-        streakUpdate = { currentStreak: increment(1), lastActiveDate: today };
-      } else {
-        streakUpdate = { currentStreak: 1, lastActiveDate: today };
+    // Smart Streak with Grace Days
+    try {
+      await updateStreakSmart(userId);
+    } catch (streakErr) {
+      console.warn("Smart streak update failed, falling back to basic:", streakErr);
+      // Basic fallback
+      const today = new Date().toISOString().split('T')[0];
+      const lastActive = userData?.lastActiveDate;
+      let streakUpdate: any = {};
+      if (lastActive !== today) {
+        const yesterday = new Date();
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toISOString().split('T')[0];
+        if (lastActive === yesterdayStr) {
+          streakUpdate = { currentStreak: increment(1), lastActiveDate: today };
+        } else {
+          streakUpdate = { currentStreak: 1, lastActiveDate: today };
+        }
+      }
+      if (Object.keys(streakUpdate).length > 0) {
+        await updateDoc(userRef, streakUpdate);
       }
     }
 
-    // Calculate coins: 10 for completion + 10 for >80% accuracy
-    let coinsEarned = 10;
-    if (result.accuracy >= 0.8) coinsEarned += 10;
+    // Calculate coins with streak multiplier
+    let baseCoins = 10;
+    if (result.accuracy >= 0.8) baseCoins += 10;
+    const currentStreak = userData?.currentStreak || 0;
+    const coinResult = calculateCoinsEarned(baseCoins, currentStreak, false);
+    const coinsEarned = coinResult.total;
+
+    // Update Elo ratings per subject
+    try {
+      let currentElo: EloRatings = userData?.eloRatings || getDefaultEloRatings(userData?.exam);
+      // Update elo for each answered question
+      for (const r of result.results) {
+        const q = questions.find(q => q.id === r.questionId);
+        if (!q) continue;
+        const qElo = difficultyToElo(q.difficulty || 'Medium');
+        const { ratings: newRatings } = updateStudentElo(currentElo, q.subject, qElo, r.isCorrect);
+        currentElo = newRatings;
+      }
+      await updateDoc(userRef, { eloRatings: currentElo });
+    } catch (eloErr) {
+      console.warn("Elo update failed:", eloErr);
+    }
 
     await updateDoc(userRef, {
       totalScore: increment(result.totalScore),
       totalQuestionsAttempted: increment(questions.length),
       totalCorrect: increment(result.results.filter(r => r.isCorrect).length),
       coins: increment(coinsEarned),
-      ...streakUpdate
     });
   }
 

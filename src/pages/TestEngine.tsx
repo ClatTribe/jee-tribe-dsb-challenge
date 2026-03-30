@@ -7,13 +7,19 @@ import { submitChallenge, checkAttempt } from '../services/db';
 import { Question, Submission, TestResult } from '../utils/evaluationUtils';
 import MathText from '../components/MathRenderer';
 import { Clock, ChevronLeft, ChevronRight, Send, AlertCircle, Trophy, Bookmark, BookmarkCheck, X, HelpCircle, BookOpen, LayoutGrid } from 'lucide-react';
+import ShareScoreButton from '../components/ShareScoreButton';
+import { drawMiniMockCard } from '../utils/shareScoreCard';
 import { motion, AnimatePresence } from 'framer-motion';
+import PredictedAIRCard from '../components/PredictedAIRCard';
+import { calculatePredictedAIR, PredictedAIR } from '../services/airPredictionService';
+import { getStreakMultiplier, calculateCoinsEarned } from '../services/gamificationService';
+import { EXAM_CONFIGS } from '../services/examConfig';
 
 import { getDailyQuestions, Question as GeminiQuestion } from '../services/geminiService';
 
 const TestEngine = () => {
   const { challengeId } = useParams();
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
   const navigate = useNavigate();
 
   const [challenge, setChallenge] = useState<any>(null);
@@ -30,6 +36,8 @@ const TestEngine = () => {
   const [showSolutions, setShowSolutions] = useState(false);
   const [isReattempt, setIsReattempt] = useState(false);
   const [showMobilePalette, setShowMobilePalette] = useState(false);
+  const [predictedAIR, setPredictedAIR] = useState<PredictedAIR | null>(null);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
   // Time tracking per question
   const questionStartTime = useRef<number>(Date.now());
@@ -40,13 +48,18 @@ const TestEngine = () => {
 
       try {
         setLoading(true);
-        // Check for re-attempt
-        const hasAttempted = await checkAttempt(profile.uid, challengeId);
+        setLoadError(null);
+        // Check for re-attempt using date-scoped ID for daily challenges
+        const todayStr = new Date().toISOString().split('T')[0];
+        const effectiveId = challengeId === 'daily-mini-mock' ? `daily-mini-mock-${todayStr}` : challengeId;
+        const hasAttempted = await checkAttempt(profile.uid, effectiveId);
         setIsReattempt(hasAttempted);
 
         if (challengeId === 'daily-mini-mock') {
-          const daily = await getDailyQuestions();
-          if (!daily || !daily.miniMock) throw new Error("Invalid daily questions data");
+          const daily = await getDailyQuestions(profile?.exam, profile?.cuetDomain);
+          if (!daily || !daily.miniMock || daily.miniMock.length === 0) {
+            throw new Error("Could not load questions. The AI engine may be temporarily unavailable.");
+          }
 
           const miniMockQuestions = daily.miniMock.map(q => ({
             id: q.id,
@@ -64,7 +77,7 @@ const TestEngine = () => {
 
           setQuestions(miniMockQuestions);
           setChallenge({
-            title: 'JEE Mains Daily Sprint',
+            title: profile?.exam ? EXAM_CONFIGS[profile.exam]?.mockTitle : 'Daily Sprint',
             duration: 30,
             markingScheme: miniMockQuestions.reduce((acc, q) => ({
               ...acc,
@@ -90,8 +103,9 @@ const TestEngine = () => {
             }
           }
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error in TestEngine fetchData:", error);
+        setLoadError(error?.message || "Failed to load the daily mock. Please try again.");
       } finally {
         setLoading(false);
       }
@@ -181,24 +195,78 @@ const TestEngine = () => {
     if (!profile || !challenge || isSubmitting) return;
     updateTimeSpent();
     setIsSubmitting(true);
-    const result = await submitChallenge(
-      profile.uid,
-      challengeId!,
-      Object.values(submissions),
-      questions,
-      challenge.markingScheme,
-      !isReattempt
-    );
-    setTestResult(result);
-    setShowResults(true);
-    setIsSubmitting(false);
-    setShowSubmitConfirm(false);
+    try {
+      // Use date-scoped ID for daily challenges so each day is tracked separately
+      const todayStr = new Date().toISOString().split('T')[0];
+      const effectiveId = challengeId === 'daily-mini-mock' ? `daily-mini-mock-${todayStr}` : challengeId!;
+      const result = await submitChallenge(
+        profile.uid,
+        effectiveId,
+        Object.values(submissions),
+        questions,
+        challenge.markingScheme,
+        !isReattempt
+      );
+      setTestResult(result);
+      // Calculate Predicted AIR
+      try {
+        const air = calculatePredictedAIR(result.totalScore, result.maxScore);
+        setPredictedAIR(air);
+      } catch (e) { console.warn('AIR calculation failed:', e); }
+      setShowResults(true);
+      setShowSubmitConfirm(false);
+      // Refresh profile so updated Elo ratings, coins, streak etc. are available
+      refreshProfile();
+    } catch (error) {
+      console.error("Submit failed:", error);
+      alert("Submission failed. Please try again.");
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  const handleRetry = () => {
+    setLoadError(null);
+    setLoading(true);
+    // Clear any stale localStorage cache for today
+    const exam = profile?.exam || 'JEE';
+    const domainSuffix = exam === 'CUET' && profile?.cuetDomain ? `-${profile.cuetDomain.replace(/\s+/g, '')}` : '';
+    localStorage.removeItem(`daily_questions_${exam}${domainSuffix}`);
+    // Re-trigger the useEffect by toggling a state
+    window.location.reload();
   };
 
   if (loading) return (
     <div className="flex flex-col items-center justify-center h-screen bg-slate-50 dark:bg-[#060818] gap-4 transition-colors">
       <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary dark:border-amber-500"></div>
       <p className="text-slate-500 dark:text-slate-400 font-black uppercase tracking-widest text-xs">Initializing Test Engine...</p>
+      <p className="text-slate-400 dark:text-slate-500 text-[10px] mt-2">Generating today's questions via AI... this may take up to 60 seconds on first load.</p>
+    </div>
+  );
+
+  if (loadError) return (
+    <div className="flex flex-col items-center justify-center min-h-[70vh] px-4 gap-6 text-center">
+      <div className="w-20 h-20 bg-rose-500/10 text-rose-500 rounded-[2rem] flex items-center justify-center">
+        <AlertCircle size={40} />
+      </div>
+      <div className="space-y-2 max-w-md">
+        <h2 className="text-2xl font-display font-black text-slate-900 dark:text-white">Questions Failed to Load</h2>
+        <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">{loadError}</p>
+      </div>
+      <div className="flex gap-3">
+        <button
+          onClick={handleRetry}
+          className="flex items-center gap-2 px-8 py-4 bg-primary text-white rounded-2xl font-black uppercase tracking-widest text-sm hover:scale-105 transition-all"
+        >
+          🔄 Retry
+        </button>
+        <button
+          onClick={() => navigate('/')}
+          className="flex items-center gap-2 px-8 py-4 bg-slate-200 dark:bg-white/10 text-slate-700 dark:text-white rounded-2xl font-black uppercase tracking-widest text-sm hover:scale-105 transition-all"
+        >
+          ← Dashboard
+        </button>
+      </div>
     </div>
   );
 
@@ -328,6 +396,20 @@ const TestEngine = () => {
           </div>
         </div>
 
+        {/* Predicted AIR */}
+        {predictedAIR && (
+          <PredictedAIRCard airData={predictedAIR} />
+        )}
+
+        {/* Streak Multiplier Info */}
+        {!isReattempt && profile?.currentStreak && profile.currentStreak >= 7 && (
+          <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-2xl p-4 text-center">
+            <p className="text-xs font-bold text-amber-400">
+              {getStreakMultiplier(profile.currentStreak).label} — coins multiplied!
+            </p>
+          </div>
+        )}
+
         <div className="flex flex-col md:flex-row justify-center gap-3 md:gap-4">
           <button
             onClick={() => setShowSolutions(!showSolutions)}
@@ -342,6 +424,17 @@ const TestEngine = () => {
             Back to Dashboard
           </button>
         </div>
+
+        <ShareScoreButton
+          generateImage={() => drawMiniMockCard({
+            userName: profile?.displayName || 'Student',
+            totalScore: testResult?.totalScore || 0,
+            maxScore: testResult?.maxScore || 0,
+            accuracy: testResult?.accuracy || 0,
+            subjectBreakdown: testResult?.subjectBreakdown,
+          })}
+          className="max-w-xs mx-auto"
+        />
 
         <AnimatePresence>
           {showSolutions && (
@@ -395,6 +488,7 @@ const TestEngine = () => {
                         </div>
                       </div>
                     )}
+
                   </div>
                 );
               })}

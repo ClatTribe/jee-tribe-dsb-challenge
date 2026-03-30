@@ -28,7 +28,6 @@ const QUESTION_SCHEMA = {
     difficulty: { type: Type.STRING, enum: ['Easy', 'Medium', 'Hard'] },
     topic: { type: Type.STRING },
     subtopic: { type: Type.STRING },
-    tags: { type: Type.ARRAY, items: { type: Type.STRING } },
   },
   required: ['id', 'subject', 'text', 'options', 'correct', 'explanation', 'difficulty'],
 };
@@ -42,65 +41,101 @@ const SKIP_SOLVE_SCHEMA = {
   required: [...QUESTION_SCHEMA.required, 'isTrap'],
 };
 
+const LATEX_INSTRUCTIONS = `CRITICAL: Use LaTeX for ALL mathematical, scientific, and chemical notations.
+- EVERY formula, variable, equation, or chemical symbol MUST be wrapped in delimiters.
+- Use $...$ for inline math (e.g., $x^2$, $H_2O$, $\\alpha$, $\\omega$, $\\mu$).
+- Use $$...$$ for complex formulas or equations that should be on their own line.
+- DO NOT return raw LaTeX like \\\\frac{1}{2} without $ delimiters.
+- DO NOT write Greek letters as words (e.g., use $\\omega$ instead of "omega").
+- ALL Greek letters MUST start with a backslash (e.g., $\\omega$, NOT $omega$).
+- Keep explanations concise (2-3 sentences max).`;
+
+// Split generation into 3 smaller API calls to avoid JSON truncation
 async function generateQuestionsForDate(dateStr: string, apiKey: string) {
   const ai = new GoogleGenAI({ apiKey });
-  const model = "gemini-2.5-flash-preview-05-20";
+  const model = "gemini-2.5-flash-lite";
   const seed = parseInt(dateStr.replace(/-/g, ''));
 
-  const prompt = `Generate a set of highly challenging JEE Mains level questions for a competitive exam platform.
-  The questions must be 'Tough' to 'Very Tough' - think JEE Mains top ranker level.
-
-  CRITICAL: Use LaTeX for ALL mathematical, scientific, and chemical notations.
-  - EVERY formula, variable, equation, or chemical symbol MUST be wrapped in delimiters.
-  - Use $...$ for inline math (e.g., $x^2$, $H_2O$, $\\alpha$, $\\omega$, $\\mu$).
-  - Use $$...$$ for complex formulas or equations that should be on their own line.
-  - DO NOT return raw LaTeX like \\\\frac{1}{2} without $ delimiters.
-  - DO NOT write Greek letters as words (e.g., use $\\omega$ instead of "omega").
-  - IMPORTANT: ALL Greek letters MUST start with a backslash (e.g., $\\omega$, NOT $omega$).
-  - Ensure the text is readable and professional.
-
-  Requirements:
-  1. Mini Mock: 12 questions (4 Physics, 4 Chemistry, 4 Mathematics).
-  2. Flashcards: 5 questions (Mix of PCM). These MUST be TITA (Type In The Answer) style. The correct answer should be a single value or formula.
-  3. Sudden Death: 5 questions (Mix of PCM).
-  4. Skip or Solve: 5 questions (Mix of PCM). Identify 'Traps' vs 'Solvable'.
-  5. Duels: 5 questions (Mix of PCM).
-
-  Today's date is ${dateStr}. Generate unique questions for today.`;
-
-  const response = await ai.models.generateContent({
+  // --- Call 1: Mini Mock (12 questions) ---
+  const miniMockResponse = await ai.models.generateContent({
     model,
-    contents: prompt,
+    contents: `Generate 12 highly challenging JEE Mains level MCQ questions: 4 Physics, 4 Chemistry, 4 Mathematics.
+${LATEX_INSTRUCTIONS}
+Date seed: ${dateStr}. Each question needs 4 options.`,
     config: {
       seed: seed,
+      maxOutputTokens: 16384,
       responseMimeType: "application/json",
       responseSchema: {
         type: Type.OBJECT,
         properties: {
-          miniMock: { type: Type.ARRAY, items: QUESTION_SCHEMA },
-          flashcards: { type: Type.ARRAY, items: QUESTION_SCHEMA },
-          suddenDeath: { type: Type.ARRAY, items: QUESTION_SCHEMA },
-          skipOrSolve: { type: Type.ARRAY, items: SKIP_SOLVE_SCHEMA },
-          duels: { type: Type.ARRAY, items: QUESTION_SCHEMA },
+          questions: { type: Type.ARRAY, items: QUESTION_SCHEMA },
         },
-        required: ['miniMock', 'flashcards', 'suddenDeath', 'skipOrSolve', 'duels'],
+        required: ['questions'],
       },
     },
   });
+  const miniMockData = JSON.parse(miniMockResponse.text || '{"questions":[]}');
 
-  const data = JSON.parse(response.text || "{}");
+  // --- Call 2: Flashcards + Sudden Death (10 questions) ---
+  const batch2Response = await ai.models.generateContent({
+    model,
+    contents: `Generate JEE Mains level questions for two categories:
+1. "flashcards": 5 TITA (Type In The Answer) questions, mix of Physics/Chemistry/Mathematics. The correct answer should be a single number or short formula.
+2. "suddenDeath": 5 MCQ questions, mix of PCM. Each needs 4 options.
+${LATEX_INSTRUCTIONS}
+Date seed: ${dateStr}.`,
+    config: {
+      seed: seed + 1,
+      maxOutputTokens: 16384,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          flashcards: { type: Type.ARRAY, items: QUESTION_SCHEMA },
+          suddenDeath: { type: Type.ARRAY, items: QUESTION_SCHEMA },
+        },
+        required: ['flashcards', 'suddenDeath'],
+      },
+    },
+  });
+  const batch2Data = JSON.parse(batch2Response.text || '{"flashcards":[],"suddenDeath":[]}');
+
+  // --- Call 3: Skip or Solve + Duels (10 questions) ---
+  const batch3Response = await ai.models.generateContent({
+    model,
+    contents: `Generate JEE Mains level questions for two categories:
+1. "skipOrSolve": 5 MCQ questions, mix of PCM. Each needs 4 options. Mark each as isTrap=true (misleading/trap question) or isTrap=false (straightforward solvable).
+2. "duels": 5 MCQ questions, mix of PCM. Each needs 4 options.
+${LATEX_INSTRUCTIONS}
+Date seed: ${dateStr}.`,
+    config: {
+      seed: seed + 2,
+      maxOutputTokens: 16384,
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: Type.OBJECT,
+        properties: {
+          skipOrSolve: { type: Type.ARRAY, items: SKIP_SOLVE_SCHEMA },
+          duels: { type: Type.ARRAY, items: QUESTION_SCHEMA },
+        },
+        required: ['skipOrSolve', 'duels'],
+      },
+    },
+  });
+  const batch3Data = JSON.parse(batch3Response.text || '{"skipOrSolve":[],"duels":[]}');
+
   return {
     date: dateStr,
-    miniMock: data.miniMock || [],
-    flashcards: data.flashcards || [],
-    suddenDeath: data.suddenDeath || [],
-    skipOrSolve: data.skipOrSolve || [],
-    duels: data.duels || [],
+    miniMock: miniMockData.questions || [],
+    flashcards: batch2Data.flashcards || [],
+    suddenDeath: batch2Data.suddenDeath || [],
+    skipOrSolve: batch3Data.skipOrSolve || [],
+    duels: batch3Data.duels || [],
   };
 }
 
 function getDateStr(offsetDays = 0): string {
-  // Use IST (UTC+5:30)
   const now = new Date();
   const istOffset = 5.5 * 60 * 60 * 1000;
   const ist = new Date(now.getTime() + istOffset + now.getTimezoneOffset() * 60 * 1000);
@@ -109,15 +144,6 @@ function getDateStr(offsetDays = 0): string {
 }
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // Optional: Verify cron secret if set
-  const cronSecret = process.env.CRON_SECRET;
-  if (cronSecret) {
-    const authHeader = req.headers.authorization;
-    if (authHeader !== `Bearer ${cronSecret}`) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
-  }
-
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) {
     return res.status(500).json({ error: 'GEMINI_API_KEY not configured' });

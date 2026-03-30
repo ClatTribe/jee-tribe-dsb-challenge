@@ -107,11 +107,17 @@ export const seedDatabase = async () => {
   const dummyUsers = [
     { displayName: 'Aryan Sharma', totalScore: 1250, currentStreak: 15, role: 'student' },
     { displayName: 'Ishita Gupta', totalScore: 1180, currentStreak: 12, role: 'student' },
-    { displayName: 'Kabir Singh', totalScore: 1050, currentStreak: 8, role: 'student' }
+    { displayName: 'Kabir Singh', totalScore: 1050, currentStreak: 8, role: 'student' },
+    { displayName: 'Priya Verma', totalScore: 980, currentStreak: 10, role: 'student' },
+    { displayName: 'Rohan Patel', totalScore: 920, currentStreak: 6, role: 'student' },
+    { displayName: 'Sneha Reddy', totalScore: 870, currentStreak: 9, role: 'student' },
+    { displayName: 'Vikram Joshi', totalScore: 810, currentStreak: 5, role: 'student' },
+    { displayName: 'Ananya Das', totalScore: 760, currentStreak: 7, role: 'student' },
   ];
 
   for (const user of dummyUsers) {
-    await addDoc(collection(db, 'users'), {
+    const id = `demo_${user.displayName.toLowerCase().replace(/\s+/g, '_')}`;
+    await setDoc(doc(db, 'users', id), {
       ...user,
       lastActiveDate: today
     });

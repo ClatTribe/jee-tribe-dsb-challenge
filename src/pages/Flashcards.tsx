@@ -3,8 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import MathText from '../components/MathRenderer';
 import { RefreshCw, ChevronLeft, ChevronRight, Book, Zap, CheckCircle2, Trophy, Loader2 } from 'lucide-react';
 import { getDailyQuestions, Question } from '../services/geminiService';
+import { useAuth } from '../contexts/AuthContext';
 
 const Flashcards = () => {
+  const { profile } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -14,7 +16,7 @@ const Flashcards = () => {
   useEffect(() => {
     const fetchQuestions = async () => {
       try {
-        const daily = await getDailyQuestions();
+        const daily = await getDailyQuestions(profile?.exam, profile?.cuetDomain);
         setQuestions(daily.flashcards);
       } catch (error) {
         console.error("Failed to fetch questions", error);

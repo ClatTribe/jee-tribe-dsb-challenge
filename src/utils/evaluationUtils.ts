@@ -1,5 +1,5 @@
 export type QuestionType = 'Single MCQ' | 'Multi MCQ' | 'Numerical' | 'Match List' | 'Fill in the Blanks';
-export type Subject = 'Physics' | 'Chemistry' | 'Mathematics';
+export type Subject = string;
 export type Difficulty = 'Easy' | 'Medium' | 'Hard';
 
 export interface Question {
@@ -35,7 +35,7 @@ export interface TestResult {
   accuracy: number;
   timeSpent: number;
   marksLostToNegative: number;
-  subjectBreakdown: Record<Subject, {
+  subjectBreakdown: Record<string, {
     score: number;
     correct: number;
     wrong: number;
@@ -60,11 +60,13 @@ export const evaluateSubmission = (
   let marksLostToNegative = 0;
   let totalTime = 0;
   
-  const subjectBreakdown: Record<Subject, any> = {
-    Physics: { score: 0, correct: 0, wrong: 0, skipped: 0, timeSpent: 0 },
-    Chemistry: { score: 0, correct: 0, wrong: 0, skipped: 0, timeSpent: 0 },
-    Mathematics: { score: 0, correct: 0, wrong: 0, skipped: 0, timeSpent: 0 }
-  };
+  // Build subject breakdown dynamically from the questions' subjects
+  const subjectBreakdown: Record<string, { score: number; correct: number; wrong: number; skipped: number; timeSpent: number }> = {};
+  for (const q of questions) {
+    if (!subjectBreakdown[q.subject]) {
+      subjectBreakdown[q.subject] = { score: 0, correct: 0, wrong: 0, skipped: 0, timeSpent: 0 };
+    }
+  }
 
   const results = questions.map(q => {
     const sub = submissions.find(s => s.questionId === q.id);
@@ -124,7 +126,8 @@ export const evaluateSubmission = (
     return { questionId: q.id, isCorrect, score, timeSpent };
   });
 
-  const accuracy = (subjectBreakdown.Physics.correct + subjectBreakdown.Chemistry.correct + subjectBreakdown.Mathematics.correct) / questions.length;
+  const totalCorrect = Object.values(subjectBreakdown).reduce((sum, s) => sum + s.correct, 0);
+  const accuracy = questions.length > 0 ? totalCorrect / questions.length : 0;
 
   return {
     totalScore,

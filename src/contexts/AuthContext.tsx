@@ -1,24 +1,35 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { 
-  onAuthStateChanged, 
-  signInWithPopup, 
-  signOut, 
+import {
+  onAuthStateChanged,
+  signInWithPopup,
+  signOut,
   User,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword
 } from 'firebase/auth';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '../firebase';
+import { ExamType, DEFAULT_EXAM, CuetDomainSubject } from '../services/examConfig';
 
-interface UserProfile {
+export interface UserProfile {
   uid: string;
   email: string | null;
   role: 'student' | 'admin';
   displayName: string | null;
   totalScore: number;
   currentStreak: number;
+  exam?: ExamType;
+  cuetDomain?: CuetDomainSubject;
   averageAccuracy?: number;
   coins?: number;
+  longestStreak?: number;
+  graceDaysUsed?: number;
+  streakFreezeAvailable?: number;
+  lastActiveDate?: string;
+  totalActiveDays?: number;
+  totalQuestionsAttempted?: number;
+  totalCorrect?: number;
+  eloRatings?: Record<string, number>;
 }
 
 interface AuthContextType {
@@ -27,6 +38,8 @@ interface AuthContextType {
   loading: boolean;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
+  refreshProfile: () => Promise<void>;
+  setExam: (exam: ExamType, cuetDomain?: CuetDomainSubject) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -43,11 +56,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
           const docRef = doc(db, 'users', firebaseUser.uid);
           const docSnap = await getDoc(docRef);
-          
+
           if (docSnap.exists()) {
             setProfile(docSnap.data() as UserProfile);
           } else {
-            // Create default student profile if not exists
+            // Create default student profile if not exists — no exam set yet
             const newProfile: UserProfile = {
               uid: firebaseUser.uid,
               email: firebaseUser.email,
@@ -61,7 +74,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
           }
         } catch (error) {
           console.error("Error fetching/creating profile:", error);
-          // If permission error, we might still have the firebaseUser but no profile
           setProfile(null);
         }
       } else {
@@ -73,13 +85,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return unsubscribe;
   }, []);
 
+  const refreshProfile = async () => {
+    if (!user) return;
+    try {
+      const docRef = doc(db, 'users', user.uid);
+      const docSnap = await getDoc(docRef);
+      if (docSnap.exists()) {
+        setProfile(docSnap.data() as UserProfile);
+      }
+    } catch (error) {
+      console.error("Error refreshing profile:", error);
+    }
+  };
+
+  const setExam = async (exam: ExamType, cuetDomain?: CuetDomainSubject) => {
+    if (!user) return;
+    try {
+      const docRef = doc(db, 'users', user.uid);
+      const updateData: Record<string, any> = { exam };
+      if (cuetDomain) updateData.cuetDomain = cuetDomain;
+      await updateDoc(docRef, updateData);
+      // Update local profile immediately
+      setProfile(prev => prev ? { ...prev, exam, ...(cuetDomain ? { cuetDomain } : {}) } : prev);
+    } catch (error) {
+      console.error("Error setting exam:", error);
+    }
+  };
+
   const loginWithGoogle = async () => {
     try {
       await signInWithPopup(auth, googleProvider);
     } catch (error: any) {
       console.error("Login error:", error);
       if (error.code === 'auth/unauthorized-domain') {
-        alert("Firebase Auth Error: This domain is not authorized. You need to add 'ais-dev-lgmwb2kxwqqezjvmytfr5q-556454094333.asia-southeast1.run.app' to the Authorized Domains in your Firebase Console (Authentication -> Settings -> Authorized domains).");
+        alert("Firebase Auth Error: This domain is not authorized. You need to add this domain to your Firebase Console (Authentication -> Settings -> Authorized domains).");
       } else if (error.code === 'auth/popup-closed-by-user') {
         console.log("User closed the login popup.");
       } else if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
@@ -97,7 +136,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   return (
-    <AuthContext.Provider value={{ user, profile, loading, loginWithGoogle, logout }}>
+    <AuthContext.Provider value={{ user, profile, loading, loginWithGoogle, logout, refreshProfile, setExam }}>
       {children}
     </AuthContext.Provider>
   );

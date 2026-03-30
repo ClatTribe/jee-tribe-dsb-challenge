@@ -107,7 +107,7 @@ const Duels = () => {
         await joinDuel(openDuel.id, profile.uid, profile.displayName);
         setActiveDuelId(openDuel.id);
       } else {
-        const daily = await getDailyQuestions();
+        const daily = await getDailyQuestions(profile?.exam, profile?.cuetDomain);
         const duelId = await createDuel(profile.uid, profile.displayName, daily.duels);
         setActiveDuelId(duelId);
       }

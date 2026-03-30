@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Skull, Heart, ShieldAlert, ChevronRight, Zap, Loader2, AlertTriangle } from 'lucide-react';
+import ShareScoreButton from '../components/ShareScoreButton';
+import { drawSuddenDeathCard } from '../utils/shareScoreCard';
 import { useNavigate } from 'react-router-dom';
 import MathText from '../components/MathRenderer';
 import { getDailyQuestions, Question } from '../services/geminiService';
@@ -28,7 +30,7 @@ const SuddenDeath = () => {
       if (!profile) return;
       try {
         const [daily, attempted] = await Promise.all([
-          getDailyQuestions(),
+          getDailyQuestions(profile?.exam, profile?.cuetDomain),
           checkAttempt(profile.uid, challengeId)
         ]);
         setQuestions(daily.suddenDeath);
@@ -135,9 +137,16 @@ const SuddenDeath = () => {
           </div>
         </div>
         <div className="flex flex-col w-full max-w-xs gap-4">
+          <ShareScoreButton
+            generateImage={() => drawSuddenDeathCard({
+              userName: profile?.displayName || 'Student',
+              score,
+              isWin: selectedOption === currentQuestion?.correct,
+            })}
+          />
           <div className="space-y-2">
             {showReattemptWarning && (
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl text-amber-600 text-xs font-bold flex items-start gap-3 text-left"
@@ -146,7 +155,7 @@ const SuddenDeath = () => {
                 <p>Note: You have already completed this challenge today. No XP will be awarded for this session.</p>
               </motion.div>
             )}
-            <button 
+            <button
               onClick={() => {
                 if (!showReattemptWarning) {
                   setShowReattemptWarning(true);
@@ -165,7 +174,7 @@ const SuddenDeath = () => {
               {showReattemptWarning ? 'Start Anyway' : 'Try Again'}
             </button>
           </div>
-          <button 
+          <button
             onClick={() => navigate('/')}
             className="w-full py-4 text-slate-500 dark:text-slate-400 font-black uppercase tracking-widest text-xs hover:text-amber-500 transition-colors"
           >

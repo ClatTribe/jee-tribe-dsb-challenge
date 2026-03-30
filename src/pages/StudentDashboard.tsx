@@ -2,18 +2,38 @@ import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { getDailyChallenge, getLeaderboard, checkAttempt } from '../services/db';
 import { getDailyQuestions } from '../services/geminiService';
+import { EXAM_CONFIGS } from '../services/examConfig';
 import { useNavigate } from 'react-router-dom';
-import { Trophy, Flame, Target, ChevronRight, Clock, BookOpen, TrendingUp, Zap, Coins, Calendar, Skull, FastForward, Swords } from 'lucide-react';
+import { Trophy, Flame, Target, ChevronRight, Clock, BookOpen, TrendingUp, Zap, Coins, Calendar, Skull, FastForward, Swords, Map, Brain, ClipboardList, MessageCircle, Shield, Sparkles, Award, Gift } from 'lucide-react';
+import ShareScoreButton from '../components/ShareScoreButton';
+import { drawDashboardCard } from '../utils/shareScoreCard';
 import { motion } from 'framer-motion';
 import MathText from '../components/MathRenderer';
+import PredictedAIRCard from '../components/PredictedAIRCard';
+import PsycheBanner from '../components/PsycheBanner';
+import MysteryBoxModal from '../components/MysteryBoxModal';
+import { getAIRFromHistory, PredictedAIR } from '../services/airPredictionService';
+import { analyzePsyche, PsycheAnalysis } from '../services/psycheService';
+import { shouldShowMysteryBox, MysteryBoxReward, getStreakMultiplier } from '../services/gamificationService';
+import { collection, getDocs, query, orderBy, limit as fbLimit, updateDoc, doc, increment } from 'firebase/firestore';
+import { db } from '../firebase';
 
 const StudentDashboard = () => {
-  const { profile } = useAuth();
+  const { profile, refreshProfile } = useAuth();
   const [challenge, setChallenge] = useState<any>(null);
   const [leaderboard, setLeaderboard] = useState<any[]>([]);
   const [hasAttemptedDaily, setHasAttemptedDaily] = useState(false);
+  const [predictedAIR, setPredictedAIR] = useState<PredictedAIR | null>(null);
+  const [psycheAnalysis, setPsycheAnalysis] = useState<PsycheAnalysis | null>(null);
+  const [showMysteryBox, setShowMysteryBox] = useState(false);
+  const [dismissedPsyche, setDismissedPsyche] = useState(false);
   const navigate = useNavigate();
   const today = new Date().toISOString().split('T')[0];
+
+  // Refresh profile on mount to pick up latest Elo, coins, streak from Firestore
+  useEffect(() => {
+    refreshProfile();
+  }, []);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -21,16 +41,47 @@ const StudentDashboard = () => {
 
       try {
         // Pre-fetch daily questions to Firestore/cache
-        getDailyQuestions().catch(err => console.error("Pre-fetch failed:", err));
+        getDailyQuestions(profile?.exam, profile?.cuetDomain).catch(err => console.error("Pre-fetch failed:", err));
 
         const [challengeData, leaderboardData, attempted] = await Promise.all([
           getDailyChallenge(today).catch(() => null),
           getLeaderboard(5).catch(() => []),
-          checkAttempt(profile.uid, 'daily-mini-mock').catch(() => false)
+          checkAttempt(profile.uid, `daily-mini-mock-${today}`).catch(() => false)
         ]);
         setChallenge(challengeData);
         setLeaderboard(leaderboardData);
         setHasAttemptedDaily(attempted);
+
+        // Fetch history for AIR prediction + Psyche analysis
+        try {
+          const historyRef = collection(db, 'users', profile.uid, 'history');
+          const hq = query(historyRef, orderBy('timestamp', 'desc'), fbLimit(20));
+          const histSnap = await getDocs(hq);
+          const historyData = histSnap.docs.map(d => d.data());
+
+          if (historyData.length > 0) {
+            // AIR Prediction
+            try {
+              const air = getAIRFromHistory(historyData.filter(h => h.maxScore));
+              setPredictedAIR(air);
+            } catch (e) { /* not enough data */ }
+
+            // Psyche Analysis
+            try {
+              const psyche = await analyzePsyche(historyData, profile);
+              setPsycheAnalysis(psyche);
+            } catch (e) { console.warn('Psyche analysis skipped:', e); }
+          }
+        } catch (e) { console.warn('History fetch for analytics failed:', e); }
+
+        // Check for Mystery Box trigger
+        if (shouldShowMysteryBox(profile.totalQuestionsAttempted || 0)) {
+          const lastBoxKey = `mysterybox-${profile.totalQuestionsAttempted}`;
+          if (!localStorage.getItem(lastBoxKey)) {
+            setShowMysteryBox(true);
+            localStorage.setItem(lastBoxKey, 'shown');
+          }
+        }
       } catch (error) {
         console.error("Dashboard data fetch error:", error);
       }
@@ -38,10 +89,14 @@ const StudentDashboard = () => {
     fetchData();
   }, [today, profile]);
 
+  const predictedAIRDisplay = predictedAIR
+    ? predictedAIR.predictedRank.toLocaleString('en-IN')
+    : '—';
+
   const stats = [
     { label: 'Current Streak', value: profile?.currentStreak || 0, icon: Flame, color: 'text-[#F59E0B]', bg: 'bg-[#F59E0B]/10' },
     { label: 'Total XP', value: profile?.totalScore || 0, icon: Trophy, color: 'text-[#F59E0B]', bg: 'bg-[#F59E0B]/10' },
-    { label: 'Accuracy', value: `${profile?.averageAccuracy || 0}%`, icon: Target, color: 'text-emerald-500', bg: 'bg-emerald-500/10' },
+    { label: 'Predicted AIR', value: predictedAIRDisplay, icon: TrendingUp, color: 'text-violet-500', bg: 'bg-violet-500/10' },
     { label: 'Coins', value: profile?.coins || 0, icon: Coins, color: 'text-amber-500', bg: 'bg-amber-500/10' },
   ];
 
@@ -53,18 +108,18 @@ const StudentDashboard = () => {
       color: 'bg-amber-500/10 text-amber-500 dark:text-amber-400 border-amber-500/20',
       path: '/flashcards'
     },
-    { 
-      title: 'Sudden Death', 
-      desc: '1 mistake = Game Over', 
-      icon: Skull, 
-      color: 'bg-rose-500/10 text-rose-500 dark:text-rose-400 border-rose-500/20',
+    {
+      title: 'Sudden Death',
+      desc: '1 mistake = Game Over',
+      icon: Skull,
+      color: 'bg-orange-500/10 text-orange-500 dark:text-orange-400 border-orange-500/20',
       path: '/sudden-death'
     },
-    { 
-      title: 'Skip or Solve', 
-      desc: 'Identify traps quickly', 
-      icon: FastForward, 
-      color: 'bg-emerald-500/10 text-emerald-500 dark:text-emerald-400 border-emerald-500/20',
+    {
+      title: 'Skip or Solve',
+      desc: 'Identify traps quickly',
+      icon: FastForward,
+      color: 'bg-amber-600/10 text-amber-600 dark:text-amber-500 border-amber-600/20',
       path: '/skip-strategy'
     },
     { 
@@ -76,18 +131,36 @@ const StudentDashboard = () => {
     }
   ];
 
+  const handleMysteryBoxClose = async (reward: MysteryBoxReward | null) => {
+    setShowMysteryBox(false);
+    if (reward && profile) {
+      try {
+        const userRef = doc(db, 'users', profile.uid);
+        if (reward.type === 'coins') {
+          await updateDoc(userRef, { coins: increment(reward.amount) });
+        } else if (reward.type === 'streak_shield') {
+          await updateDoc(userRef, { streakFreezeAvailable: increment(1) });
+        }
+      } catch (e) { console.warn('Mystery box reward save failed:', e); }
+    }
+  };
+
+  const streakInfo = getStreakMultiplier(profile?.currentStreak || 0);
+
   return (
     <div className="space-y-5 md:space-y-8 pb-12 px-1 md:px-0">
+      {/* Mystery Box Modal */}
+      <MysteryBoxModal isOpen={showMysteryBox} onClose={handleMysteryBoxClose} />
+
+      {/* Psyche Banner */}
+      {psycheAnalysis && !dismissedPsyche && (
+        <PsycheBanner analysis={psycheAnalysis} onDismiss={() => setDismissedPsyche(true)} />
+      )}
+
       {/* Header Section */}
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 relative z-10">
         <div className="space-y-2">
-          <motion.div 
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-white/50 dark:bg-white/5 backdrop-blur-md rounded-full border border-slate-200/50 dark:border-white/5 text-[10px] font-black uppercase tracking-widest text-slate-500 dark:text-slate-400"
-          >
-            <Target size={14} className="text-[#F59E0B]" /> Mission: JEE Tribe DSB
-          </motion.div>
+          {/* Badge removed — clean hero */}
           <h1 className="text-3xl md:text-6xl font-display font-black tracking-tighter text-slate-900 dark:text-white">
             Sup, <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-500">{profile?.displayName?.split(' ')[0]}</span>! ✨
           </h1>
@@ -123,6 +196,21 @@ const StudentDashboard = () => {
         ))}
       </div>
 
+      {/* Share Daily Stats */}
+      <div className="relative z-10">
+        <ShareScoreButton
+          generateImage={() => drawDashboardCard({
+            userName: profile?.displayName || 'Student',
+            currentStreak: profile?.currentStreak || 0,
+            totalXP: profile?.totalScore || 0,
+            coins: profile?.coins || 0,
+            predictedAIR: predictedAIR?.predictedRank || null,
+            airCategory: predictedAIR?.category || null,
+          })}
+          className="max-w-xs"
+        />
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           {/* Daily Challenge Hero */}
@@ -141,14 +229,14 @@ const StudentDashboard = () => {
                   className="flex items-center gap-2"
                 >
                   <span className="bg-white/5 backdrop-blur-md text-white text-[10px] uppercase font-black px-4 py-1.5 rounded-full border border-white/10 tracking-widest">
-                    🔥 JEE Mains Daily Sprint
+                    🔥 {profile?.exam ? EXAM_CONFIGS[profile.exam]?.mockTitle : 'Daily Sprint'}
                   </span>
                   {hasAttemptedDaily && (
                     <span className="bg-amber-500/20 text-amber-400 text-[10px] uppercase font-black px-4 py-1.5 rounded-full border border-amber-500/20 tracking-widest">
                       Completed
                     </span>
                   )}
-                  <span className="text-white/40 text-xs font-bold">Director Special Batch Exclusive</span>
+                  <span className="text-white/40 text-xs font-bold">PrepTribe Exclusive</span>
                 </motion.div>
                 <motion.h2
                   initial={{ opacity: 0, y: 20 }}
@@ -253,6 +341,85 @@ const StudentDashboard = () => {
               ))}
             </div>
           </div>
+
+          {/* AI-Powered Features */}
+          <div className="relative z-10">
+            <h3 className="font-display font-black text-slate-900 dark:text-white flex items-center gap-2 mb-4 md:mb-6 text-xl md:text-2xl tracking-tight">
+              <Sparkles size={22} className="text-amber-500 md:hidden" />
+              <Sparkles size={28} className="text-amber-500 hidden md:block" />
+              AI Coach Tools
+            </h3>
+            <div className="grid grid-cols-2 gap-3 md:gap-4">
+              {[
+                {
+                  title: 'Topic Mastery',
+                  desc: 'Your strength map',
+                  icon: Map,
+                  color: 'bg-amber-500/10 text-amber-500 dark:text-amber-400 border-amber-500/20',
+                  path: '/mastery-map',
+                },
+                {
+                  title: 'Meri Report',
+                  desc: 'Weekly AI diagnosis',
+                  icon: Brain,
+                  color: 'bg-orange-500/10 text-orange-500 dark:text-orange-400 border-orange-500/20',
+                  path: '/meri-report',
+                },
+                {
+                  title: 'Aaj Ka Plan',
+                  desc: 'Personalized schedule',
+                  icon: ClipboardList,
+                  color: 'bg-amber-600/10 text-amber-600 dark:text-amber-500 border-amber-600/20',
+                  path: '/aaj-ka-plan',
+                },
+                {
+                  title: 'Doubt Samjhao',
+                  desc: 'AI tutor for doubts',
+                  icon: MessageCircle,
+                  color: 'bg-amber-500/10 text-amber-500 dark:text-amber-400 border-amber-500/20',
+                  path: '/doubt-samjhao',
+                },
+              ].map((feature, i) => (
+                <motion.button
+                  key={i}
+                  whileHover={{ scale: 1.02, y: -4 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => navigate(feature.path)}
+                  className={`flex flex-col md:flex-row items-center md:items-center gap-2 md:gap-4 p-4 md:p-6 rounded-xl md:rounded-[2rem] border-2 border-slate-200/50 dark:border-white/5 hover:border-amber-500/30 dark:hover:border-amber-500/30 hover:shadow-xl transition-all text-center md:text-left bg-white/80 dark:bg-white/5 backdrop-blur-xl group`}
+                >
+                  <div className={`w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center shrink-0 ${feature.color} group-hover:rotate-6 transition-transform duration-300`}>
+                    <feature.icon size={20} className="md:hidden" />
+                    <feature.icon size={28} className="hidden md:block" />
+                  </div>
+                  <div>
+                    <h4 className="font-black text-slate-900 dark:text-white text-sm md:text-lg tracking-tight">{feature.title}</h4>
+                    <p className="text-[8px] md:text-[10px] font-black text-slate-500 dark:text-slate-400 uppercase tracking-widest">{feature.desc}</p>
+                  </div>
+                </motion.button>
+              ))}
+            </div>
+          </div>
+
+          {/* Streak Status Card */}
+          <div className="relative z-10">
+            <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-2xl p-5 flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 bg-amber-500/20 rounded-2xl flex items-center justify-center">
+                  <Shield size={24} className="text-amber-500" />
+                </div>
+                <div>
+                  <h4 className="font-black text-slate-900 dark:text-white text-sm">Smart Streak Protection</h4>
+                  <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
+                    Grace days: 2/month · Streak freezes: buy with coins
+                  </p>
+                </div>
+              </div>
+              <div className="text-right">
+                <p className="text-2xl font-black text-amber-500">{profile?.currentStreak || 0}</p>
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Day streak</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         {/* Sidebar Column */}
@@ -303,16 +470,36 @@ const StudentDashboard = () => {
             </button>
           </div>
 
+          {/* Predicted AIR Card */}
+          {predictedAIR && (
+            <PredictedAIRCard airData={predictedAIR} compact />
+          )}
+
+          {/* Elo / Skill Rating removed */}
+
+          {/* Streak Multiplier Badge */}
+          {streakInfo.multiplier > 1 && (
+            <div className="bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-xl p-4 text-center">
+              <p className="text-2xl font-black text-amber-400">{streakInfo.multiplier}x</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Coin Multiplier Active</p>
+              {streakInfo.nextTier && (
+                <p className="text-[9px] text-slate-500 font-bold mt-1">
+                  Next: {streakInfo.nextTier.multiplier}x at {streakInfo.nextTier.days} days
+                </p>
+              )}
+            </div>
+          )}
+
           {/* Pro Tip */}
-          <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl md:rounded-[2rem] p-4 md:p-6">
+          <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl md:rounded-[2rem] p-4 md:p-6">
             <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 bg-emerald-500 rounded-lg flex items-center justify-center text-white">
+              <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center text-white">
                 <Zap size={16} />
               </div>
-              <h4 className="font-black text-emerald-500 text-sm uppercase tracking-widest">Ranker's Tip</h4>
+              <h4 className="font-black text-amber-500 text-sm uppercase tracking-widest">Ranker's Tip</h4>
             </div>
             <p className="text-sm text-slate-700 dark:text-slate-400 leading-relaxed font-medium">
-              "In JEE Advanced, knowing what to skip is as important as knowing what to solve. Use the 'Skip or Solve' mode to train your intuition."
+              "Knowing what to skip is as important as knowing what to solve. Use the 'Skip or Solve' mode to train your intuition."
             </p>
           </div>
         </div>

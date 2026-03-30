@@ -2,6 +2,8 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Swords, Zap, Clock, ChevronRight, Trophy, X, Shield, User, Send, Loader2 } from 'lucide-react';
+import ShareScoreButton from '../components/ShareScoreButton';
+import { drawDuelCard } from '../utils/shareScoreCard';
 import { useAuth } from '../contexts/AuthContext';
 import MathText from '../components/MathRenderer';
 import { Question } from '../services/geminiService';
@@ -298,13 +300,24 @@ const DuelArena = () => {
               </div>
 
               <div className="pt-4">
-                <div className={`text-2xl font-black uppercase tracking-tighter mb-8 ${
+                <div className={`text-2xl font-black uppercase tracking-tighter mb-6 ${
                   userScore > opponentScore ? 'text-emerald-500' : userScore < opponentScore ? 'text-rose-500' : 'text-amber-500'
                 }`}>
                   {userScore > opponentScore ? 'Victory!' : userScore < opponentScore ? 'Defeat' : 'It\'s a Draw!'}
                 </div>
-                
-                <button 
+
+                <ShareScoreButton
+                  generateImage={() => drawDuelCard({
+                    userName: profile?.displayName || 'You',
+                    userScore,
+                    opponentName: opponentName || 'Opponent',
+                    opponentScore,
+                    result: userScore > opponentScore ? 'victory' : userScore < opponentScore ? 'defeat' : 'draw',
+                  })}
+                  className="mb-4"
+                />
+
+                <button
                   onClick={() => navigate('/')}
                   className="w-full py-5 btn-liquid rounded-2xl font-black text-xl uppercase tracking-widest shadow-xl"
                 >

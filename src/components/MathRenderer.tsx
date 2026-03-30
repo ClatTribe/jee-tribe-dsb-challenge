@@ -102,12 +102,65 @@ const LATEX_COMMANDS = new Set([
   'mathrm', 'operatorname',
 ]);
 
+// Map of unicode math symbols → LaTeX equivalents
+const UNICODE_MATH_MAP: [RegExp, string][] = [
+  [/±/g, '$\\pm$'],
+  [/∓/g, '$\\mp$'],
+  [/×/g, '$\\times$'],
+  [/÷/g, '$\\div$'],
+  [/≤/g, '$\\leq$'],
+  [/≥/g, '$\\geq$'],
+  [/≠/g, '$\\neq$'],
+  [/≈/g, '$\\approx$'],
+  [/∞/g, '$\\infty$'],
+  [/→/g, '$\\rightarrow$'],
+  [/←/g, '$\\leftarrow$'],
+  [/⇒/g, '$\\Rightarrow$'],
+  [/⇐/g, '$\\Leftarrow$'],
+  [/∈/g, '$\\in$'],
+  [/∉/g, '$\\notin$'],
+  [/⊂/g, '$\\subset$'],
+  [/⊃/g, '$\\supset$'],
+  [/∪/g, '$\\cup$'],
+  [/∩/g, '$\\cap$'],
+  [/∅/g, '$\\emptyset$'],
+  [/∀/g, '$\\forall$'],
+  [/∃/g, '$\\exists$'],
+  [/∂/g, '$\\partial$'],
+  [/∇/g, '$\\nabla$'],
+  [/√/g, '$\\sqrt{}$'],
+  [/∝/g, '$\\propto$'],
+  [/°/g, '$^\\circ$'],
+  [/·/g, '$\\cdot$'],
+  [/⊥/g, '$\\perp$'],
+  [/∥/g, '$\\parallel$'],
+  [/△/g, '$\\triangle$'],
+  [/∠/g, '$\\angle$'],
+];
+
 function process(text: string): string[] {
   if (!text) return [];
   let t = String(text);
 
+  // === Pass 0: Convert unicode math symbols to LaTeX ===
+  // Replace symbols outside existing $...$ blocks
+  for (const [regex, replacement] of UNICODE_MATH_MAP) {
+    t = t.replace(
+      new RegExp('(\\$\\$[\\s\\S]*?\\$\\$|\\$[^$\\n]*?\\$)|' + regex.source, 'g'),
+      (match, mathGroup) => mathGroup ? mathGroup : replacement
+    );
+  }
+
   // Escape literal dollar signs
   t = t.replace(/\\\$/g, '\x00');
+
+  // Fix unpaired $ signs from Gemini output:
+  // Count $ signs; if odd, the last one is unpaired — remove it
+  const dollarCount = (t.match(/\$/g) || []).length;
+  if (dollarCount % 2 !== 0) {
+    const lastIdx = t.lastIndexOf('$');
+    t = t.slice(0, lastIdx) + t.slice(lastIdx + 1);
+  }
 
   // Convert \[...\] to $$...$$ and \(...\) to $...$
   t = t.replace(/\\\[/g, '$$').replace(/\\\]/g, '$$');

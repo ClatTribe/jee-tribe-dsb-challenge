@@ -863,7 +863,7 @@ const QuestionManager = () => {
                           )}
 
                           <div className="flex items-center gap-2 text-xs font-bold text-emerald-600 bg-emerald-50 px-3 py-2 rounded-lg inline-flex">
-                            <CheckCircle2 size={14} /> Answer: {q.correctAnswers}
+                            <CheckCircle2 size={14} /> Answer: <MathText text={q.correctAnswers || ''} />
                           </div>
                         </>
                       )}

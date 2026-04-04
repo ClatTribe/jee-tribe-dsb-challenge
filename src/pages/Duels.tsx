@@ -1,27 +1,44 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Swords, User, Shield, Zap, Trophy, Clock, Search, Loader2, Play } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Swords, User, Shield, Zap, Trophy, Clock, Search, Loader2, Play, Share2, MessageCircle, Copy, Check } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { findOpenDuel, createDuel, joinDuel, listenToDuel, Duel, getOpenDuels } from '../services/db';
 import { getDailyQuestions } from '../services/geminiService';
 import { doc, getDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../firebase';
+import PaywallOverlay from '../components/PaywallOverlay';
 
 const Duels = () => {
   const { profile } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [searching, setSearching] = useState(false);
   const [matchFound, setMatchFound] = useState(false);
   const [opponent, setOpponent] = useState<any>(null);
   const [activeDuelId, setActiveDuelId] = useState<string | null>(null);
   const [openDuels, setOpenDuels] = useState<Duel[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [creatingChallenge, setCreatingChallenge] = useState(false);
+  const [waitingForFriend, setWaitingForFriend] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
 
-  // Bot logic
+  // Handle ?join=duelId from WhatsApp invite links (run once on mount)
+  const joinIdFromUrl = searchParams.get('join');
+  useEffect(() => {
+    if (joinIdFromUrl && profile && !activeDuelId) {
+      // Clear the query param first to prevent re-triggers
+      setSearchParams({}, { replace: true });
+      // Auto-join the duel from WhatsApp link
+      joinSpecificDuel(joinIdFromUrl);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [joinIdFromUrl, profile?.uid]);
+
+  // Bot logic — only for random matchmaking, NOT for friend challenges
   useEffect(() => {
     let botTimer: any;
-    if (searching && !matchFound && activeDuelId) {
+    if (searching && !matchFound && activeDuelId && !waitingForFriend) {
       botTimer = setTimeout(async () => {
         try {
           const duelRef = doc(db, 'duels', activeDuelId);
@@ -79,16 +96,19 @@ const Duels = () => {
     if (!activeDuelId) return;
 
     const unsubscribe = listenToDuel(activeDuelId, (duel) => {
+      if (!duel || !duel.players) return;
       if (duel.status === 'active') {
         const opponentId = Object.keys(duel.players).find(id => id !== profile?.uid);
-        if (opponentId) {
+        if (opponentId && duel.players[opponentId]) {
+          const oppName = duel.players[opponentId].displayName || 'Opponent';
           setOpponent({
-            name: duel.players[opponentId].displayName,
-            avatar: duel.players[opponentId].displayName.substring(0, 2).toUpperCase(),
+            name: oppName,
+            avatar: oppName.substring(0, 2).toUpperCase(),
             rank: 'Elite'
           });
           setMatchFound(true);
           setSearching(false);
+          setWaitingForFriend(false);
         }
       }
     });
@@ -108,13 +128,19 @@ const Duels = () => {
         setActiveDuelId(openDuel.id);
       } else {
         const daily = await getDailyQuestions(profile?.exam, profile?.cuetDomain);
-        const duelId = await createDuel(profile.uid, profile.displayName, daily.duels);
+        const duelQuestions = daily?.duels || [];
+        if (duelQuestions.length === 0) {
+          setError("Could not generate duel questions. Please try again.");
+          setSearching(false);
+          return;
+        }
+        const duelId = await createDuel(profile.uid, profile.displayName, duelQuestions);
         setActiveDuelId(duelId);
       }
     } catch (error: any) {
       console.error("Matchmaking error:", error);
-      setError(error.message?.includes('permission') 
-        ? "Permission Denied: Matchmaking is restricted by Firestore rules." 
+      setError(error.message?.includes('permission')
+        ? "Permission Denied: Matchmaking is restricted by Firestore rules."
         : "Matchmaking failed. Please try again.");
       setSearching(false);
     }
@@ -142,8 +168,52 @@ const Duels = () => {
     }
   };
 
+  const challengeViaWhatsApp = async () => {
+    if (!profile) return;
+    setCreatingChallenge(true);
+    setError(null);
+    try {
+      const daily = await getDailyQuestions(profile?.exam, profile?.cuetDomain);
+      const duelQuestions = daily?.duels || [];
+      if (duelQuestions.length === 0) {
+        setError("Could not generate duel questions. Please try again.");
+        return;
+      }
+      const duelId = await createDuel(profile.uid, profile.displayName, duelQuestions);
+      setActiveDuelId(duelId);
+      setWaitingForFriend(true);
+
+      const duelLink = `https://jeetribechallenge.getedunext.com/duels?join=${duelId}`;
+      const message = `⚔️ I challenge you to a 1v1 Duel on PrepTribe!\n\n🎯 5 questions, winner takes all.\n🔗 Join here: ${duelLink}\n\nLet's see who's the real topper! 💪`;
+      const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+      window.open(whatsappUrl, '_blank');
+    } catch (err: any) {
+      console.error("Challenge creation error:", err);
+      setError("Failed to create challenge. Please try again.");
+    } finally {
+      setCreatingChallenge(false);
+    }
+  };
+
+  const cancelChallenge = () => {
+    setWaitingForFriend(false);
+    setActiveDuelId(null);
+    setMatchFound(false);
+    setSearching(false);
+  };
+
+  const copyDuelLink = () => {
+    if (activeDuelId) {
+      const link = `https://jeetribechallenge.getedunext.com/duels?join=${activeDuelId}`;
+      navigator.clipboard.writeText(link);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    }
+  };
+
   return (
     <div className="max-w-4xl mx-auto space-y-12 pb-12">
+      <PaywallOverlay />
       <div className="text-center space-y-4 relative z-10">
         <motion.div 
           initial={{ opacity: 0, y: -20 }}
@@ -170,8 +240,52 @@ const Duels = () => {
       </div>
 
       <AnimatePresence mode="wait">
-        {!searching && !matchFound ? (
-          <motion.div 
+        {waitingForFriend && !matchFound ? (
+          /* ── Waiting for Friend to Join ── */
+          <motion.div
+            key="waiting-friend"
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="bg-slate-900/90 backdrop-blur-xl p-12 rounded-[3rem] shadow-2xl text-center space-y-8 max-w-2xl mx-auto text-white border border-slate-800/50 relative overflow-hidden"
+          >
+            <div className="absolute inset-0 bg-[url('https://www.transparenttextures.com/patterns/cubes.png')] opacity-10 mix-blend-overlay pointer-events-none" />
+
+            <div className="relative w-32 h-32 mx-auto z-10">
+              <div className="absolute inset-0 border-4 border-[#25D366]/30 rounded-full animate-ping" />
+              <div className="absolute inset-0 border-4 border-[#25D366] rounded-full flex items-center justify-center bg-slate-900 shadow-[0_0_30px_rgba(37,211,102,0.4)]">
+                <MessageCircle size={48} className="text-[#25D366]" />
+              </div>
+            </div>
+
+            <div className="relative z-10 space-y-2">
+              <h2 className="text-3xl font-display font-black text-white tracking-tight">Waiting for Friend...</h2>
+              <p className="text-slate-400 font-medium">Share the link via WhatsApp. The duel will start when your friend joins.</p>
+            </div>
+
+            <div className="relative z-10 space-y-4">
+              <button
+                onClick={copyDuelLink}
+                className="w-full py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl font-bold text-sm transition-all flex items-center justify-center gap-2 border border-white/10"
+              >
+                {linkCopied ? <Check size={16} className="text-green-400" /> : <Copy size={16} />}
+                {linkCopied ? 'Link Copied!' : 'Copy Invite Link'}
+              </button>
+
+              <button
+                onClick={cancelChallenge}
+                className="text-sm text-slate-500 hover:text-slate-300 font-bold uppercase tracking-widest transition-colors"
+              >
+                Cancel Challenge
+              </button>
+            </div>
+
+            <div className="text-[10px] font-black uppercase tracking-widest text-[#25D366]/80 pt-4 relative z-10 animate-pulse">
+              Listening for opponent...
+            </div>
+          </motion.div>
+        ) : !searching && !matchFound ? (
+          <motion.div
             key="lobby"
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -207,12 +321,32 @@ const Duels = () => {
               </div>
             </div>
 
-            <button 
+            <button
               onClick={startSearch}
               className="w-full py-5 btn-liquid-secondary rounded-2xl font-black text-xl uppercase tracking-widest active:scale-95 relative z-10"
             >
               Find Random Opponent
             </button>
+
+            <div className="relative z-10">
+              <div className="flex items-center gap-4 my-2">
+                <div className="flex-1 h-px bg-slate-200 dark:bg-white/10" />
+                <span className="text-xs font-black uppercase tracking-widest text-slate-400">or</span>
+                <div className="flex-1 h-px bg-slate-200 dark:bg-white/10" />
+              </div>
+              <button
+                onClick={challengeViaWhatsApp}
+                disabled={creatingChallenge}
+                className="w-full py-4 bg-[#25D366] hover:bg-[#1ebe57] text-white rounded-2xl font-black text-lg uppercase tracking-widest active:scale-95 transition-all duration-200 flex items-center justify-center gap-3 disabled:opacity-50"
+              >
+                {creatingChallenge ? (
+                  <Loader2 size={20} className="animate-spin" />
+                ) : (
+                  <MessageCircle size={20} fill="currentColor" />
+                )}
+                {creatingChallenge ? 'Creating Challenge...' : 'Challenge a Friend'}
+              </button>
+            </div>
 
             {/* Open Challenges List */}
             {openDuels.length > 0 && (
@@ -223,12 +357,15 @@ const Duels = () => {
                 </div>
                 <div className="grid grid-cols-1 gap-3">
                   {openDuels.map((duel) => {
+                    if (!duel?.players) return null;
                     const hostId = Object.keys(duel.players)[0];
+                    if (!hostId) return null;
                     const host = duel.players[hostId];
-                    if (hostId === profile?.uid) return null;
-                    
+                    if (!host || !host.displayName || hostId === profile?.uid) return null;
+                    const hostName = host.displayName || 'Player';
+
                     return (
-                      <motion.div 
+                      <motion.div
                         key={duel.id}
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
@@ -236,10 +373,10 @@ const Duels = () => {
                       >
                         <div className="flex items-center gap-3">
                           <div className="w-10 h-10 bg-amber-500/10 text-amber-600 rounded-xl flex items-center justify-center font-black">
-                            {host.displayName.substring(0, 2).toUpperCase()}
+                            {hostName.substring(0, 2).toUpperCase()}
                           </div>
                           <div className="text-left">
-                            <p className="font-bold text-slate-900 dark:text-white">{host.displayName}</p>
+                            <p className="font-bold text-slate-900 dark:text-white">{hostName}</p>
                             <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Waiting for opponent...</p>
                           </div>
                         </div>
@@ -281,8 +418,8 @@ const Duels = () => {
               Estimated wait: 00:04
             </div>
           </motion.div>
-        ) : (
-          <motion.div 
+        ) : matchFound && opponent ? (
+          <motion.div
             key="found"
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -302,7 +439,7 @@ const Duels = () => {
 
             {/* VS */}
             <div className="flex flex-col items-center justify-center space-y-4">
-              <motion.div 
+              <motion.div
                 initial={{ scale: 0, rotate: -180 }}
                 animate={{ scale: 1, rotate: 0 }}
                 transition={{ type: "spring", stiffness: 200, damping: 15 }}
@@ -329,7 +466,7 @@ const Duels = () => {
             </div>
 
             <div className="md:col-span-3 text-center pt-8">
-              <button 
+              <button
                 onClick={enterArena}
                 className="px-12 py-5 btn-liquid rounded-2xl font-black text-xl uppercase tracking-widest shadow-xl"
               >
@@ -337,6 +474,9 @@ const Duels = () => {
               </button>
             </div>
           </motion.div>
+        ) : (
+          /* Fallback — shouldn't normally reach here */
+          <div className="text-center py-12 text-slate-400 font-medium">Loading...</div>
         )}
       </AnimatePresence>
     </div>

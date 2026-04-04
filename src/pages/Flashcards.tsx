@@ -4,6 +4,7 @@ import MathText from '../components/MathRenderer';
 import { RefreshCw, ChevronLeft, ChevronRight, Book, Zap, CheckCircle2, Trophy, Loader2 } from 'lucide-react';
 import { getDailyQuestions, Question } from '../services/geminiService';
 import { useAuth } from '../contexts/AuthContext';
+import PaywallOverlay from '../components/PaywallOverlay';
 
 const Flashcards = () => {
   const { profile } = useAuth();
@@ -71,6 +72,7 @@ const Flashcards = () => {
 
   return (
     <div className="max-w-2xl mx-auto space-y-8 md:space-y-12 py-4 md:py-8 pb-20 px-4 md:px-0">
+      <PaywallOverlay />
       <div className="text-center space-y-3 md:space-y-4">
         <div className="inline-flex items-center gap-2 px-4 py-2 bg-secondary/10 text-secondary rounded-full text-[10px] font-black uppercase tracking-widest">
           <Zap size={14} /> Active Recall Mode

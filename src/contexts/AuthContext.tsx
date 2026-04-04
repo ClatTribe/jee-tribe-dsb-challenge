@@ -20,6 +20,7 @@ export interface UserProfile {
   currentStreak: number;
   exam?: ExamType;
   cuetDomain?: CuetDomainSubject;
+  cuetDomains?: CuetDomainSubject[];
   averageAccuracy?: number;
   coins?: number;
   longestStreak?: number;
@@ -30,6 +31,8 @@ export interface UserProfile {
   totalQuestionsAttempted?: number;
   totalCorrect?: number;
   eloRatings?: Record<string, number>;
+  createdAt?: string;
+  isPremium?: boolean;
 }
 
 interface AuthContextType {
@@ -39,7 +42,7 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
-  setExam: (exam: ExamType, cuetDomain?: CuetDomainSubject) => Promise<void>;
+  setExam: (exam: ExamType, cuetDomain?: CuetDomainSubject, cuetDomains?: CuetDomainSubject[]) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -67,7 +70,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
               role: 'student',
               displayName: firebaseUser.displayName,
               totalScore: 0,
-              currentStreak: 0
+              currentStreak: 0,
+              createdAt: new Date().toISOString(),
+              isPremium: false
             };
             await setDoc(docRef, newProfile);
             setProfile(newProfile);
@@ -98,15 +103,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  const setExam = async (exam: ExamType, cuetDomain?: CuetDomainSubject) => {
+  const setExam = async (exam: ExamType, cuetDomain?: CuetDomainSubject, cuetDomains?: CuetDomainSubject[]) => {
     if (!user) return;
     try {
       const docRef = doc(db, 'users', user.uid);
       const updateData: Record<string, any> = { exam };
       if (cuetDomain) updateData.cuetDomain = cuetDomain;
+      if (cuetDomains && cuetDomains.length > 0) updateData.cuetDomains = cuetDomains;
       await updateDoc(docRef, updateData);
       // Update local profile immediately
-      setProfile(prev => prev ? { ...prev, exam, ...(cuetDomain ? { cuetDomain } : {}) } : prev);
+      setProfile(prev => prev ? {
+        ...prev,
+        exam,
+        ...(cuetDomain ? { cuetDomain } : {}),
+        ...(cuetDomains ? { cuetDomains } : {}),
+      } : prev);
     } catch (error) {
       console.error("Error setting exam:", error);
     }

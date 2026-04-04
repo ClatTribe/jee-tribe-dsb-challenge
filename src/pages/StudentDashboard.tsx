@@ -4,7 +4,7 @@ import { getDailyChallenge, getLeaderboard, checkAttempt } from '../services/db'
 import { getDailyQuestions } from '../services/geminiService';
 import { EXAM_CONFIGS } from '../services/examConfig';
 import { useNavigate } from 'react-router-dom';
-import { Trophy, Flame, Target, ChevronRight, Clock, BookOpen, TrendingUp, Zap, Coins, Calendar, Skull, FastForward, Swords, Map, Brain, ClipboardList, MessageCircle, Shield, Sparkles, Award, Gift } from 'lucide-react';
+import { Trophy, Flame, Target, ChevronRight, Clock, BookOpen, TrendingUp, Zap, Coins, Calendar, Skull, FastForward, Swords, Map, Brain, ClipboardList, MessageCircle, Shield, Sparkles, Award, Gift, Crown } from 'lucide-react';
 import ShareScoreButton from '../components/ShareScoreButton';
 import { drawDashboardCard } from '../utils/shareScoreCard';
 import { motion } from 'framer-motion';
@@ -29,6 +29,50 @@ const StudentDashboard = () => {
   const [dismissedPsyche, setDismissedPsyche] = useState(false);
   const navigate = useNavigate();
   const today = new Date().toISOString().split('T')[0];
+
+  // Calculate days until exam based on user's selected exam
+  const daysUntilExam = React.useMemo(() => {
+    const now = new Date();
+    const currentYear = now.getFullYear();
+
+    // Approximate exam dates (month, day) — updated yearly
+    // JEE Main Session 1: ~Jan end, Session 2: ~Apr first week
+    // NEET UG: ~May first week
+    // CUET UG: ~May mid to June start
+    const examSchedules: Record<string, Array<{ month: number; day: number }>> = {
+      JEE: [
+        { month: 0, day: 28 },  // Jan 28 — Session 1
+        { month: 3, day: 5 },   // Apr 5 — Session 2
+      ],
+      NEET: [
+        { month: 4, day: 4 },   // May 4
+      ],
+      CUET: [
+        { month: 4, day: 15 },  // May 15 (start of CUET window)
+      ],
+    };
+
+    const exam = profile?.exam || 'JEE';
+    const schedule = examSchedules[exam] || examSchedules.JEE;
+
+    // Find the next upcoming exam date
+    let nextExamDate: Date | null = null;
+    for (const { month, day } of schedule) {
+      const candidate = new Date(currentYear, month, day);
+      if (candidate > now) {
+        nextExamDate = candidate;
+        break;
+      }
+    }
+    // If all dates this year have passed, use next year's first date
+    if (!nextExamDate) {
+      const first = schedule[0];
+      nextExamDate = new Date(currentYear + 1, first.month, first.day);
+    }
+
+    const diffMs = nextExamDate.getTime() - now.getTime();
+    return Math.max(0, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+  }, [profile?.exam]);
 
   // Refresh profile on mount to pick up latest Elo, coins, streak from Firestore
   useEffect(() => {
@@ -162,9 +206,14 @@ const StudentDashboard = () => {
         <div className="space-y-2">
           {/* Badge removed — clean hero */}
           <h1 className="text-3xl md:text-6xl font-display font-black tracking-tighter text-slate-900 dark:text-white">
-            Sup, <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-500">{profile?.displayName?.split(' ')[0]}</span>! ✨
+            Sup, <span className="text-transparent bg-clip-text bg-gradient-to-r from-amber-500 to-orange-500">{profile?.displayName?.split(' ')[0]}</span>!{' '}
+            {profile?.isPremium ? (
+              <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-white text-sm font-black uppercase align-middle">
+                <Crown size={14} /> Pro
+              </span>
+            ) : '✨'}
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 font-medium text-lg">Only <span className="text-amber-500 dark:text-amber-400 font-bold">84 days</span> left. Let's get this bread. 🍞</p>
+          <p className="text-slate-500 dark:text-slate-400 font-medium text-lg">Only <span className="text-amber-500 dark:text-amber-400 font-bold">{daysUntilExam} days</span> left. Let's get this bread. 🍞</p>
         </div>
         <div className="flex items-center gap-3">
           <div className="bg-white/80 dark:bg-white/5 backdrop-blur-md px-6 py-4 rounded-[2rem] border border-slate-200/50 dark:border-white/5 flex items-center gap-3 shadow-lg shadow-slate-200/20 dark:shadow-none">
@@ -191,6 +240,11 @@ const StudentDashboard = () => {
             <div>
               <p className="text-[8px] md:text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-0.5 md:mb-1">{stat.label}</p>
               <p className="text-xl md:text-3xl font-black text-slate-900 dark:text-white tracking-tight">{stat.value}</p>
+              {i === 0 && (
+                <p className="text-[8px] font-bold text-slate-500 dark:text-slate-400 mt-2">
+                  Grace: 2/mo • Freezes: buy with coins
+                </p>
+              )}
             </div>
           </motion.div>
         ))}
@@ -198,45 +252,47 @@ const StudentDashboard = () => {
 
       {/* Share Daily Stats */}
       <div className="relative z-10">
-        <ShareScoreButton
-          generateImage={() => drawDashboardCard({
-            userName: profile?.displayName || 'Student',
-            currentStreak: profile?.currentStreak || 0,
-            totalXP: profile?.totalScore || 0,
-            coins: profile?.coins || 0,
-            predictedAIR: predictedAIR?.predictedRank || null,
-            airCategory: predictedAIR?.category || null,
-          })}
-          className="max-w-xs"
-        />
+        <div className="max-w-xs">
+          <ShareScoreButton
+            generateImage={() => drawDashboardCard({
+              userName: profile?.displayName || 'Student',
+              currentStreak: profile?.currentStreak || 0,
+              totalXP: profile?.totalScore || 0,
+              coins: profile?.coins || 0,
+              predictedAIR: predictedAIR?.predictedRank || null,
+              airCategory: predictedAIR?.category || null,
+            })}
+            className="w-full"
+          />
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         <div className="lg:col-span-2 space-y-8">
           {/* Daily Challenge Hero */}
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
-            className="bg-[#060818] rounded-xl md:rounded-[2.5rem] p-5 md:p-12 text-white relative overflow-hidden shadow-2xl shadow-amber-500/10 border border-white/5"
+            className="bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-500/10 dark:to-orange-500/5 rounded-xl md:rounded-[2.5rem] p-5 md:p-12 text-slate-900 dark:text-white relative overflow-hidden shadow-2xl shadow-amber-500/10 dark:shadow-none border border-amber-200 dark:border-amber-500/20"
           >
             <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-8">
               <div className="space-y-6 max-w-md">
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, x: -20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.2 }}
                   className="flex items-center gap-2"
                 >
-                  <span className="bg-white/5 backdrop-blur-md text-white text-[10px] uppercase font-black px-4 py-1.5 rounded-full border border-white/10 tracking-widest">
+                  <span className="bg-amber-100/80 dark:bg-amber-500/20 backdrop-blur-md text-amber-900 dark:text-amber-300 text-[10px] uppercase font-black px-4 py-1.5 rounded-full border border-amber-200 dark:border-amber-500/30 tracking-widest">
                     🔥 {profile?.exam ? EXAM_CONFIGS[profile.exam]?.mockTitle : 'Daily Sprint'}
                   </span>
                   {hasAttemptedDaily && (
-                    <span className="bg-amber-500/20 text-amber-400 text-[10px] uppercase font-black px-4 py-1.5 rounded-full border border-amber-500/20 tracking-widest">
+                    <span className="bg-amber-200/80 dark:bg-amber-500/20 text-amber-800 dark:text-amber-400 text-[10px] uppercase font-black px-4 py-1.5 rounded-full border border-amber-300 dark:border-amber-500/30 tracking-widest">
                       Completed
                     </span>
                   )}
-                  <span className="text-white/40 text-xs font-bold">PrepTribe Exclusive</span>
+                  <span className="text-amber-700/60 dark:text-amber-500/60 text-xs font-bold">PrepTribe Exclusive</span>
                 </motion.div>
                 <motion.h2
                   initial={{ opacity: 0, y: 20 }}
@@ -246,19 +302,19 @@ const StudentDashboard = () => {
                 >
                   <MathText text={challenge?.title || 'Daily DSB Challenge'} />
                 </motion.h2>
-                <motion.div 
+                <motion.div
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: 0.4 }}
-                  className="flex flex-wrap gap-6 text-slate-400"
+                  className="flex flex-wrap gap-6 text-slate-600 dark:text-slate-400"
                 >
-                  <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/5">
-                    <Zap size={18} className="text-amber-500" />
-                    <span className="text-sm font-bold">12 Questions</span>
+                  <div className="flex items-center gap-2 bg-amber-100/60 dark:bg-white/10 px-3 py-1.5 rounded-xl border border-amber-200/80 dark:border-white/10">
+                    <Zap size={18} className="text-amber-600 dark:text-amber-500" />
+                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200">12 Questions</span>
                   </div>
-                  <div className="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-xl border border-white/5">
-                    <Clock size={18} className="text-amber-500" />
-                    <span className="text-sm font-bold">30 Minutes</span>
+                  <div className="flex items-center gap-2 bg-amber-100/60 dark:bg-white/10 px-3 py-1.5 rounded-xl border border-amber-200/80 dark:border-white/10">
+                    <Clock size={18} className="text-amber-600 dark:text-amber-500" />
+                    <span className="text-sm font-bold text-slate-700 dark:text-slate-200">30 Minutes</span>
                   </div>
                 </motion.div>
                 <motion.button 
@@ -267,8 +323,8 @@ const StudentDashboard = () => {
                   transition={{ delay: 0.5 }}
                   onClick={() => navigate(`/test/daily-mini-mock`)}
                   className={`flex items-center gap-2 md:gap-3 px-6 md:px-10 py-4 md:py-5 rounded-xl md:rounded-2xl font-black text-sm md:text-lg active:scale-95 ${
-                    hasAttemptedDaily 
-                      ? 'bg-white/10 text-white/60 border border-white/10 hover:bg-white/20' 
+                    hasAttemptedDaily
+                      ? 'bg-amber-100 dark:bg-white/10 text-amber-800 dark:text-white/60 border border-amber-200 dark:border-white/10 hover:bg-amber-200 dark:hover:bg-white/20'
                       : 'btn-liquid-secondary'
                   }`}
                 >
@@ -276,20 +332,20 @@ const StudentDashboard = () => {
                 </motion.button>
               </div>
               
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0, scale: 0.8, rotate: -10 }}
                 animate={{ opacity: 1, scale: 1, rotate: 0 }}
                 transition={{ delay: 0.4, type: "spring", stiffness: 100 }}
-                className="hidden md:block w-48 h-48 bg-white/10 rounded-full border-8 border-white/5 flex items-center justify-center relative"
+                className="hidden md:block w-48 h-48 bg-amber-100/40 dark:bg-amber-500/10 rounded-full border-8 border-amber-200/60 dark:border-amber-500/20 flex items-center justify-center relative"
               >
-                <motion.div 
+                <motion.div
                   animate={{ rotate: 360 }}
                   transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                  className="absolute inset-0 rounded-full border-t-4 border-secondary/50"
+                  className="absolute inset-0 rounded-full border-t-4 border-amber-500/50 dark:border-secondary/50"
                 />
                   <div className="text-center relative z-10">
-                    <p className="text-4xl font-black text-amber-500">+50</p>
-                    <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">XP Reward</p>
+                    <p className="text-4xl font-black text-amber-600 dark:text-amber-500">+50</p>
+                    <p className="text-[10px] font-black uppercase tracking-widest text-amber-700/60 dark:text-slate-500">XP Reward</p>
                   </div>
                 </motion.div>
               </div>
@@ -327,7 +383,7 @@ const StudentDashboard = () => {
                   whileHover={{ scale: 1.02, y: -4 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => navigate(mode.path)}
-                  className={`flex flex-col md:flex-row items-center md:items-center gap-2 md:gap-4 p-4 md:p-6 rounded-xl md:rounded-[2rem] border-2 border-slate-200/50 dark:border-white/5 hover:border-amber-500/30 dark:hover:border-amber-500/30 hover:shadow-xl transition-all text-center md:text-left bg-white/80 dark:bg-white/5 backdrop-blur-xl group`}
+                  className={`flex flex-col md:flex-row items-center md:items-center gap-2 md:gap-4 p-4 md:p-6 rounded-xl md:rounded-[2rem] border-2 border-l-4 border-slate-200/50 dark:border-white/5 border-l-amber-500 dark:border-l-amber-500 hover:border-amber-500/30 dark:hover:border-amber-500/30 hover:shadow-xl transition-all text-center md:text-left bg-white/80 dark:bg-white/5 backdrop-blur-xl group`}
                 >
                   <div className={`w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center shrink-0 ${mode.color} group-hover:rotate-6 transition-transform duration-300`}>
                     <mode.icon size={20} className="md:hidden" />
@@ -385,8 +441,9 @@ const StudentDashboard = () => {
                   whileHover={{ scale: 1.02, y: -4 }}
                   whileTap={{ scale: 0.98 }}
                   onClick={() => navigate(feature.path)}
-                  className={`flex flex-col md:flex-row items-center md:items-center gap-2 md:gap-4 p-4 md:p-6 rounded-xl md:rounded-[2rem] border-2 border-slate-200/50 dark:border-white/5 hover:border-amber-500/30 dark:hover:border-amber-500/30 hover:shadow-xl transition-all text-center md:text-left bg-white/80 dark:bg-white/5 backdrop-blur-xl group`}
+                  className={`flex flex-col md:flex-row items-center md:items-center gap-2 md:gap-4 p-4 md:p-6 rounded-xl md:rounded-[2rem] border-2 border-dashed border-slate-200/70 dark:border-white/10 hover:border-amber-500/30 dark:hover:border-amber-500/30 hover:shadow-xl transition-all text-center md:text-left bg-white/80 dark:bg-white/5 backdrop-blur-xl group relative`}
                 >
+                  <div className="absolute top-2 right-2 bg-amber-500/20 dark:bg-amber-500/30 text-amber-700 dark:text-amber-400 text-[7px] font-black px-2 py-1 rounded-md border border-amber-500/30 uppercase tracking-widest">AI</div>
                   <div className={`w-10 h-10 md:w-14 md:h-14 rounded-xl md:rounded-2xl flex items-center justify-center shrink-0 ${feature.color} group-hover:rotate-6 transition-transform duration-300`}>
                     <feature.icon size={20} className="md:hidden" />
                     <feature.icon size={28} className="hidden md:block" />
@@ -400,72 +457,52 @@ const StudentDashboard = () => {
             </div>
           </div>
 
-          {/* Streak Status Card */}
-          <div className="relative z-10">
-            <div className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-2xl p-5 flex items-center justify-between">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 bg-amber-500/20 rounded-2xl flex items-center justify-center">
-                  <Shield size={24} className="text-amber-500" />
-                </div>
-                <div>
-                  <h4 className="font-black text-slate-900 dark:text-white text-sm">Smart Streak Protection</h4>
-                  <p className="text-[10px] font-bold text-slate-500 dark:text-slate-400">
-                    Grace days: 2/month · Streak freezes: buy with coins
-                  </p>
-                </div>
-              </div>
-              <div className="text-right">
-                <p className="text-2xl font-black text-amber-500">{profile?.currentStreak || 0}</p>
-                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest">Day streak</p>
-              </div>
-            </div>
-          </div>
         </div>
 
         {/* Sidebar Column */}
         <div className="space-y-8 relative z-10">
           {/* Leaderboard Preview */}
-          <div className="bg-[#060818] rounded-xl md:rounded-[2.5rem] p-5 md:p-8 text-white shadow-2xl border border-white/5 relative overflow-hidden">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 rounded-full blur-3xl" />
+          <div className="bg-white dark:bg-white/5 rounded-xl md:rounded-[2.5rem] p-5 md:p-8 text-slate-900 dark:text-white shadow-2xl dark:shadow-none border border-amber-200 dark:border-white/10 relative overflow-hidden backdrop-blur-xl">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 dark:bg-amber-500/5 rounded-full blur-3xl" />
             <div className="flex items-center justify-between mb-8 relative z-10">
               <h3 className="text-2xl font-display font-black tracking-tight">Global Rank</h3>
-              <Trophy className="text-amber-400" size={28} />
+              <Trophy className="text-amber-500 dark:text-amber-400" size={28} />
             </div>
             <div className="space-y-6 relative z-10">
               {leaderboard.length > 0 ? leaderboard.map((user, i) => (
-                <motion.div 
-                  key={user.id} 
+                <motion.div
+                  key={user.id}
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: i * 0.1 }}
-                  className="flex items-center justify-between group hover:bg-white/5 p-3 -mx-3 rounded-2xl transition-colors cursor-pointer"
+                  className="flex items-center justify-between group hover:bg-amber-50/60 dark:hover:bg-white/5 p-3 -mx-3 rounded-2xl transition-colors cursor-pointer"
                 >
                   <div className="flex items-center gap-4">
-                    <span className={`text-sm font-black w-4 ${i === 0 ? 'text-amber-400 text-lg' : i === 1 ? 'text-slate-300' : i === 2 ? 'text-amber-600' : 'text-slate-500'}`}>{i + 1}</span>
-                    <div className={`w-12 h-12 rounded-[1.25rem] border-2 flex items-center justify-center font-black text-sm transition-all duration-300 ${i === 0 ? 'bg-amber-500/20 border-amber-500/50 text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.3)]' : 'bg-white/5 border-white/10 text-slate-300 group-hover:border-amber-500/50'}`}>
+                    <span className={`text-sm font-black w-4 ${i === 0 ? 'text-amber-500 dark:text-amber-400 text-lg' : i === 1 ? 'text-slate-400 dark:text-slate-300' : i === 2 ? 'text-amber-600 dark:text-amber-600' : 'text-slate-500 dark:text-slate-500'}`}>{i + 1}</span>
+                    <div className={`w-12 h-12 rounded-[1.25rem] border-2 flex items-center justify-center font-black text-sm transition-all duration-300 ${i === 0 ? 'bg-amber-500/20 border-amber-500/50 text-amber-600 dark:bg-amber-500/20 dark:border-amber-500/50 dark:text-amber-400 shadow-[0_0_15px_rgba(245,158,11,0.3)]' : 'bg-slate-100/50 dark:bg-white/5 border-slate-200 dark:border-white/10 text-slate-700 dark:text-slate-300 group-hover:border-amber-500/50'}`}>
                       {user.displayName?.substring(0, 2).toUpperCase() || '??'}
                     </div>
                     <div>
-                      <p className="text-sm font-bold text-slate-200 group-hover:text-white transition-colors">{user.displayName}</p>
-                      <p className="text-[10px] font-black uppercase tracking-widest text-amber-500">{user.totalScore || 0} XP</p>
+                      <p className="text-sm font-bold text-slate-800 dark:text-slate-200 group-hover:text-slate-900 dark:group-hover:text-white transition-colors">{user.displayName}</p>
+                      <p className="text-[10px] font-black uppercase tracking-widest text-amber-600 dark:text-amber-500">{user.totalScore || 0} XP</p>
                     </div>
                   </div>
-                  {i === 0 && <Flame size={20} className="text-amber-500 animate-pulse" />}
+                  {i === 0 && <Flame size={20} className="text-amber-500 dark:text-amber-500 animate-pulse" />}
                 </motion.div>
               )) : (
-                <div className="text-center py-4 text-slate-500 text-xs">No data yet</div>
+                <div className="text-center py-4 text-slate-500 dark:text-slate-500 text-xs">No data yet</div>
               )}
             </div>
-            <div className="mt-8 pt-8 border-t border-white/5">
-              <div className="flex items-center justify-between bg-white/5 p-4 rounded-2xl border border-white/5">
+            <div className="mt-8 pt-8 border-t border-amber-200 dark:border-white/5">
+              <div className="flex items-center justify-between bg-amber-100/40 dark:bg-white/5 p-4 rounded-2xl border border-amber-200 dark:border-white/5">
                 <div className="flex items-center gap-3">
-                  <span className="text-xs font-black text-slate-500">YOU</span>
-                  <span className="text-xs font-bold">{profile?.displayName?.split(' ')[0]}</span>
+                  <span className="text-xs font-black text-slate-600 dark:text-slate-500">YOU</span>
+                  <span className="text-xs font-bold text-slate-900 dark:text-slate-200">{profile?.displayName?.split(' ')[0]}</span>
                 </div>
-                <span className="text-xs font-black text-amber-500">{profile?.totalScore || 0} XP</span>
+                <span className="text-xs font-black text-amber-600 dark:text-amber-500">{profile?.totalScore || 0} XP</span>
               </div>
             </div>
-            <button className="w-full mt-6 py-4 rounded-2xl bg-white/5 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-white/10 transition-colors">
+            <button className="w-full mt-6 py-4 rounded-2xl bg-amber-100/60 dark:bg-white/5 text-slate-700 dark:text-slate-400 text-[10px] font-black uppercase tracking-widest hover:bg-amber-100 dark:hover:bg-white/10 transition-colors">
               View Full Leaderboard
             </button>
           </div>

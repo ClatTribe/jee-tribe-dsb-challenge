@@ -27,6 +27,12 @@ service cloud.firestore {
         allow read: if isOwner(userId) || isAdmin();
         allow write: if isOwner(userId);
       }
+
+      // Full Length Test Attempts subcollection
+      match /fltAttempts/{attemptId} {
+        allow read: if isOwner(userId) || isAdmin();
+        allow write: if isOwner(userId);
+      }
     }
 
     // Question Bank
@@ -56,6 +62,24 @@ service cloud.firestore {
     match /attempts/{attemptId} {
       allow read: if isAdmin();
       allow write: if isSignedIn();
+    }
+
+    // Study Content (infographics, slides, flashcards cache)
+    match /studyContent/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isSignedIn();
+    }
+
+    // Full Length Tests (pre-generated, read-only for students)
+    match /fullLengthTests/{testId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
+    }
+
+    // LearnFlix Videos (pre-fetched curated YouTube videos)
+    match /learnflixVideos/{docId} {
+      allow read: if isSignedIn();
+      allow write: if isAdmin();
     }
   }
 }

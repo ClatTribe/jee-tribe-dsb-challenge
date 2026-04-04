@@ -5,6 +5,8 @@ import { db } from '../firebase';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, TrendingUp, TrendingDown, Minus, ChevronDown, ChevronRight, Zap, Target, BookOpen } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import PaywallOverlay from '../components/PaywallOverlay';
+import { EXAM_CONFIGS, ExamType } from '../services/examConfig';
 
 interface TopicData {
   topic: string;
@@ -26,6 +28,18 @@ const SUBJECT_COLORS: Record<string, { bg: string; text: string; border: string;
   Physics: { bg: 'bg-blue-500/10', text: 'text-blue-500', border: 'border-blue-500/20', accent: 'bg-blue-500' },
   Chemistry: { bg: 'bg-emerald-500/10', text: 'text-emerald-500', border: 'border-emerald-500/20', accent: 'bg-emerald-500' },
   Mathematics: { bg: 'bg-amber-500/10', text: 'text-amber-500', border: 'border-amber-500/20', accent: 'bg-amber-500' },
+  Biology: { bg: 'bg-green-500/10', text: 'text-green-500', border: 'border-green-500/20', accent: 'bg-green-500' },
+  English: { bg: 'bg-violet-500/10', text: 'text-violet-500', border: 'border-violet-500/20', accent: 'bg-violet-500' },
+  'General Test': { bg: 'bg-orange-500/10', text: 'text-orange-500', border: 'border-orange-500/20', accent: 'bg-orange-500' },
+  Economics: { bg: 'bg-amber-500/10', text: 'text-amber-500', border: 'border-amber-500/20', accent: 'bg-amber-500' },
+  'Political Science': { bg: 'bg-rose-500/10', text: 'text-rose-500', border: 'border-rose-500/20', accent: 'bg-rose-500' },
+  Psychology: { bg: 'bg-indigo-500/10', text: 'text-indigo-500', border: 'border-indigo-500/20', accent: 'bg-indigo-500' },
+  'Business Studies': { bg: 'bg-orange-500/10', text: 'text-orange-500', border: 'border-orange-500/20', accent: 'bg-orange-500' },
+  Accountancy: { bg: 'bg-teal-500/10', text: 'text-teal-500', border: 'border-teal-500/20', accent: 'bg-teal-500' },
+  History: { bg: 'bg-yellow-500/10', text: 'text-yellow-500', border: 'border-yellow-500/20', accent: 'bg-yellow-500' },
+  Geography: { bg: 'bg-cyan-500/10', text: 'text-cyan-500', border: 'border-cyan-500/20', accent: 'bg-cyan-500' },
+  Sociology: { bg: 'bg-pink-500/10', text: 'text-pink-500', border: 'border-pink-500/20', accent: 'bg-pink-500' },
+  'Computer Science': { bg: 'bg-slate-500/10', text: 'text-slate-500', border: 'border-slate-500/20', accent: 'bg-slate-500' },
 };
 
 const getMasteryColor = (accuracy: number) => {
@@ -52,12 +66,20 @@ const TopicMasteryMap = () => {
         const q = query(historyRef, orderBy('timestamp', 'desc'));
         const snap = await getDocs(q);
 
+        // Build subject list from user's exam config
+        const exam = (profile.exam || 'JEE') as ExamType;
+        const config = EXAM_CONFIGS[exam];
+        let examSubjects = [...config.subjects];
+        // For CUET, replace generic "Domain Subject" with actual user domains
+        if (exam === 'CUET') {
+          examSubjects = examSubjects.filter(s => s !== 'Domain Subject');
+          const domains = profile.cuetDomains || (profile.cuetDomain ? [profile.cuetDomain] : []);
+          examSubjects.push(...domains);
+        }
+
         // Aggregate topic-level data from attempt history
-        const topicMap: Record<string, Record<string, { correct: number; total: number; dates: string[] }>> = {
-          Physics: {},
-          Chemistry: {},
-          Mathematics: {},
-        };
+        const topicMap: Record<string, Record<string, { correct: number; total: number; dates: string[] }>> = {};
+        examSubjects.forEach(s => { topicMap[s] = {}; });
 
         snap.docs.forEach(doc => {
           const data = doc.data();
@@ -137,6 +159,7 @@ const TopicMasteryMap = () => {
 
   return (
     <div className="space-y-6 pb-12">
+      <PaywallOverlay />
       {/* Header */}
       <div className="flex items-center gap-4">
         <button onClick={() => navigate(-1)} className="w-10 h-10 rounded-full bg-white/80 dark:bg-white/5 border border-slate-200/50 dark:border-white/5 flex items-center justify-center hover:scale-110 transition-transform">
@@ -289,14 +312,27 @@ function getDefaultTopics(subject: string): TopicData[] {
     Physics: ['Mechanics', 'Electrostatics', 'Optics', 'Thermodynamics', 'Modern Physics', 'Magnetism', 'Waves'],
     Chemistry: ['Organic Chemistry', 'Inorganic Chemistry', 'Physical Chemistry', 'Coordination Compounds', 'Electrochemistry'],
     Mathematics: ['Calculus', 'Algebra', 'Coordinate Geometry', 'Trigonometry', 'Probability & Statistics', 'Vectors & 3D'],
+    Biology: ['Human Physiology', 'Plant Physiology', 'Genetics', 'Ecology', 'Cell Biology', 'Molecular Biology'],
+    English: ['Reading Comprehension', 'Vocabulary', 'Grammar', 'Para Jumbles', 'Error Spotting'],
+    'General Test': ['Quantitative Aptitude', 'Logical Reasoning', 'Data Interpretation', 'General Knowledge', 'Current Affairs'],
+    Economics: ['Microeconomics', 'Macroeconomics', 'Indian Economy', 'Statistics', 'Development Economics'],
+    'Political Science': ['Indian Constitution', 'Political Theory', 'International Relations', 'Comparative Politics'],
+    Psychology: ['Learning & Memory', 'Human Development', 'Social Psychology', 'Statistics in Psychology', 'Abnormal Psychology'],
+    'Business Studies': ['Management Principles', 'Marketing', 'Financial Management', 'Business Environment', 'Planning & Organising'],
+    Accountancy: ['Financial Statements', 'Partnership Accounts', 'Company Accounts', 'Cash Flow Statement', 'Ratio Analysis'],
+    History: ['Ancient India', 'Medieval India', 'Modern India', 'World History', 'Nationalism'],
+    Geography: ['Physical Geography', 'Human Geography', 'Indian Geography', 'Climatology', 'Map Skills'],
+    Sociology: ['Society & Social Institutions', 'Social Change', 'Indian Society', 'Social Stratification'],
+    'Computer Science': ['Programming', 'Data Structures', 'Networking', 'Database Management', 'Boolean Algebra'],
   };
 
-  return (topics[subject] || ['General']).map(t => ({
+  return (topics[subject] || ['General Practice']).map(t => ({
     topic: t, correct: 0, total: 0, accuracy: 0, lastAttempted: 'Never', trend: 'new' as const,
   }));
 }
 
 function getDefaultSubjects(): SubjectData[] {
+  // Fallback — will be overridden by exam-specific subjects in fetchMasteryData
   return ['Physics', 'Chemistry', 'Mathematics'].map(subject => ({
     subject,
     topics: getDefaultTopics(subject),

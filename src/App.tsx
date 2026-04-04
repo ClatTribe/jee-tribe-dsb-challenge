@@ -2,9 +2,11 @@ import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from 'rea
 import { BrowserRouter as Router, Routes, Route, Link, useNavigate, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { ProtectedRoute } from './components/ProtectedRoute';
-import { LogOut, LayoutDashboard, Database, Calendar, BookOpen, User, Trophy, Moon, Sun, AlertCircle, RefreshCw, Brain, Map, Menu, X, ChevronRight } from 'lucide-react';
+import { LogOut, LayoutDashboard, Database, Calendar, BookOpen, User, Trophy, Moon, Sun, AlertCircle, RefreshCw, Brain, Map, Menu, X, ChevronRight, Crown } from 'lucide-react';
 import NotificationCenter from './components/NotificationCenter';
 import Sidebar from './components/Sidebar';
+import UpgradeBanner from './components/UpgradeBanner';
+import { usePaywall } from './hooks/usePaywall';
 import { EXAM_CONFIGS } from './services/examConfig';
 
 // Error Boundary Component
@@ -69,19 +71,11 @@ const DoubtSamjhao = React.lazy(() => import('./pages/DoubtSamjhao'));
 const Mocks = React.lazy(() => import('./pages/Mocks'));
 const LearnFlix = React.lazy(() => import('./pages/LearnFlix'));
 const Notes = React.lazy(() => import('./pages/Notes'));
-
-// ─── BRAND COLORS ────────────────────────────────────────────
-const BRAND = {
-  primary: "#F59E0B",
-  darkBg: "rgba(2, 6, 23, 0.95)",
-  borderSubtle: "rgba(99, 102, 241, 0.1)",
-  textMuted: "#94a3b8",
-  textBright: "#f8fafc",
-};
+const FullLengthTests = React.lazy(() => import('./pages/FullLengthTests'));
+const FullLengthTestEngine = React.lazy(() => import('./pages/FullLengthTestEngine'));
 
 // ─── PRODUCT ECOSYSTEM ──────────────────────────────────────
 const CURRENT_PRODUCT = "preptribe";
-
 interface Product { id: string; label: string; url: string; }
 const PRODUCTS: Product[] = [
   { id: "edunext",     label: "EduNext",     url: "https://getedunext.com" },
@@ -103,12 +97,11 @@ const ADMIN_NAV: NavLink[] = [
   { label: "Challenges",   to: "/admin/challenges",   icon: <Calendar size={16} /> },
 ];
 
-const Navbar = ({ onOpenSidebar }: { onOpenSidebar: () => void }) => {
+const Navbar = ({ onOpenSidebar, bannerVisible }: { onOpenSidebar: () => void; bannerVisible?: boolean }) => {
   const { profile, logout } = useAuth();
   const navigate = useNavigate();
   const [isDark, setIsDark] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   useEffect(() => {
     if (document.documentElement.classList.contains('dark')) setIsDark(true);
@@ -132,32 +125,24 @@ const Navbar = ({ onOpenSidebar }: { onOpenSidebar: () => void }) => {
 
   const handleLogout = async () => {
     await logout();
-    setMobileMenuOpen(false);
     navigate('/login');
   };
 
   if (!profile) return null;
 
   const navLinks = profile.role === 'admin' ? ADMIN_NAV : STUDENT_NAV;
-  const examLabel = profile.exam ? EXAM_CONFIGS[profile.exam]?.name : '';
 
   return (
     <nav
-      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${
-        isScrolled || mobileMenuOpen ? "backdrop-blur-md border-b" : "bg-transparent"
-      }`}
-      style={{
-        backgroundColor: isScrolled || mobileMenuOpen ? BRAND.darkBg : "transparent",
-        borderColor: isScrolled || mobileMenuOpen ? BRAND.borderSubtle : "transparent",
-      }}
+      className={`fixed left-0 right-0 z-50 transition-all duration-300 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800`}
+      style={{ top: bannerVisible ? '36px' : '0' }}
     >
-      <div className="container mx-auto px-4 sm:px-6 flex items-center justify-between max-w-7xl h-16">
-        {/* ── Sidebar Toggle + Logo ── */}
+      <div className="max-w-[1440px] mx-auto px-4 sm:px-6 flex items-center justify-between h-16">
+        {/* ── Left: Hamburger (mobile) + Logo ── */}
         <div className="flex items-center gap-2">
           <button
             onClick={onOpenSidebar}
-            className="p-2 rounded-lg transition-all hover:bg-white/10 lg:hidden"
-            style={{ color: BRAND.textMuted }}
+            className="p-2 rounded-lg transition-all hover:bg-slate-100 dark:hover:bg-slate-800 lg:hidden text-slate-600 dark:text-slate-400"
             aria-label="Open sidebar"
           >
             <Menu size={22} />
@@ -167,51 +152,34 @@ const Navbar = ({ onOpenSidebar }: { onOpenSidebar: () => void }) => {
           </Link>
         </div>
 
-        {/* ── Desktop: Nav Links ── */}
-        <div className="hidden lg:flex items-center gap-5">
+        {/* ── Center: Nav Links ── */}
+        <div className="hidden lg:flex items-center gap-6">
           {navLinks.map((link) => (
             <Link
               key={link.label}
               to={link.to}
-              className="text-sm font-semibold transition-colors hover:text-white flex items-center gap-1.5"
-              style={{ color: BRAND.textMuted }}
+              className="text-sm font-medium transition-colors text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white flex items-center gap-1.5"
             >
               {link.icon} {link.label}
             </Link>
           ))}
         </div>
 
-        {/* ── Desktop: Product Switcher + Theme + Auth ── */}
-        <div className="hidden lg:flex items-center gap-3">
-          {/* Product Tabs */}
-          <div
-            className="flex items-center rounded-lg overflow-hidden"
-            style={{ border: `1px solid ${BRAND.borderSubtle}` }}
-          >
+        {/* ── Right: Product Switcher + User Area ── */}
+        <div className="hidden lg:flex items-center gap-4">
+          {/* Product Switcher — matches EduNext style */}
+          <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
             {PRODUCTS.map((product) => {
               const isActive = product.id === CURRENT_PRODUCT;
               return (
                 <a
                   key={product.id}
                   href={product.url}
-                  className="px-4 py-2 text-xs font-bold tracking-wide transition-all duration-200"
-                  style={{
-                    color: isActive ? BRAND.primary : BRAND.textMuted,
-                    backgroundColor: isActive ? "rgba(245, 158, 11, 0.1)" : "transparent",
-                    borderBottom: isActive ? `2px solid ${BRAND.primary}` : "2px solid transparent",
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.color = BRAND.textBright;
-                      e.currentTarget.style.backgroundColor = "rgba(255,255,255,0.05)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!isActive) {
-                      e.currentTarget.style.color = BRAND.textMuted;
-                      e.currentTarget.style.backgroundColor = "transparent";
-                    }
-                  }}
+                  className={`px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                    isActive
+                      ? 'bg-amber-50 dark:bg-amber-500/15 text-amber-700 dark:text-amber-400 border-b-2 border-amber-500'
+                      : 'text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-white hover:bg-slate-50 dark:hover:bg-white/5'
+                  }`}
                 >
                   {product.label}
                 </a>
@@ -219,11 +187,10 @@ const Navbar = ({ onOpenSidebar }: { onOpenSidebar: () => void }) => {
             })}
           </div>
 
-          {/* Dark Mode Toggle */}
+          {/* Theme Toggle */}
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-full transition-all hover:scale-110 active:scale-95"
-            style={{ color: BRAND.textMuted }}
+            className="p-2 rounded-full transition-all hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400"
             aria-label="Toggle Dark Mode"
           >
             {isDark ? <Sun size={18} /> : <Moon size={18} />}
@@ -231,38 +198,37 @@ const Navbar = ({ onOpenSidebar }: { onOpenSidebar: () => void }) => {
 
           {/* Streak Badge */}
           {profile.role !== 'admin' && (
-            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-amber-500/20" style={{ backgroundColor: "rgba(245, 158, 11, 0.08)" }}>
-              <span className="text-amber-500 streak-flame text-sm">🔥</span>
-              <span className="text-sm font-black text-amber-500">{profile.currentStreak || 0}</span>
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-amber-500/20 bg-amber-50 dark:bg-amber-500/10">
+              <span className="text-amber-500 text-sm">🔥</span>
+              <span className="text-sm font-bold text-amber-600 dark:text-amber-400">{profile.currentStreak || 0}</span>
             </div>
           )}
 
-          {/* Notification Center */}
+          {/* Notifications */}
           {profile.role !== 'admin' && <NotificationCenter />}
 
-          {/* User Area + Logout */}
-          <div className="flex items-center gap-2.5 ml-1 pl-3 border-l" style={{ borderColor: BRAND.borderSubtle }}>
+          {/* User + Logout */}
+          <div className="flex items-center gap-2.5 pl-4 border-l border-slate-200 dark:border-slate-700">
             <div
-              className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold"
-              style={{
-                backgroundColor: "rgba(245, 158, 11, 0.15)",
-                color: BRAND.primary,
-                border: "1px solid rgba(245, 158, 11, 0.3)",
-              }}
+              className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold bg-amber-100 dark:bg-amber-500/20 text-amber-700 dark:text-amber-400 border border-amber-200 dark:border-amber-500/30"
               title={profile.displayName || ""}
             >
               {(profile.displayName || profile.email || "U").charAt(0).toUpperCase()}
             </div>
             <div className="hidden xl:flex flex-col items-start">
-              <span className="text-sm font-bold" style={{ color: BRAND.textBright }}>{profile.displayName}</span>
-              <span className="text-[10px] uppercase tracking-widest font-black" style={{ color: BRAND.primary }}>{profile.exam || 'Student'}</span>
+              <span className="text-sm font-semibold text-slate-900 dark:text-white flex items-center gap-1.5">
+                {profile.displayName}
+                {profile.isPremium && (
+                  <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-gradient-to-r from-amber-400 to-orange-500 text-white text-[9px] font-black uppercase">
+                    <Crown size={9} /> Pro
+                  </span>
+                )}
+              </span>
+              <span className="text-[10px] uppercase tracking-widest font-bold text-amber-600 dark:text-amber-400">{profile.exam || 'Student'}</span>
             </div>
             <button
               onClick={handleLogout}
-              className="p-2 rounded-full transition-all"
-              style={{ color: BRAND.textMuted }}
-              onMouseEnter={(e) => { e.currentTarget.style.color = "#ef4444"; e.currentTarget.style.backgroundColor = "rgba(239, 68, 68, 0.1)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.color = BRAND.textMuted; e.currentTarget.style.backgroundColor = "transparent"; }}
+              className="p-2 rounded-full transition-all text-slate-500 dark:text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-500/10"
               title="Logout"
             >
               <LogOut size={18} />
@@ -270,104 +236,23 @@ const Navbar = ({ onOpenSidebar }: { onOpenSidebar: () => void }) => {
           </div>
         </div>
 
-        {/* ── Mobile: Toggle ── */}
-        <div className="lg:hidden flex items-center gap-3">
-          {/* Mobile streak badge */}
+        {/* ── Mobile Right: Streak + Theme ── */}
+        <div className="lg:hidden flex items-center gap-2">
           {profile.role !== 'admin' && (
-            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-amber-500/20" style={{ backgroundColor: "rgba(245, 158, 11, 0.08)" }}>
+            <div className="flex items-center gap-1 px-2.5 py-1 rounded-full border border-amber-500/20 bg-amber-50 dark:bg-amber-500/10">
               <span className="text-amber-500 text-xs">🔥</span>
-              <span className="text-[10px] font-black text-amber-500">{profile.currentStreak || 0}</span>
+              <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400">{profile.currentStreak || 0}</span>
             </div>
           )}
           <button
             onClick={toggleTheme}
-            className="p-2 rounded-full"
-            style={{ color: BRAND.textMuted }}
+            className="p-2 rounded-full text-slate-500 dark:text-slate-400"
             aria-label="Toggle Dark Mode"
           >
             {isDark ? <Sun size={18} /> : <Moon size={18} />}
           </button>
-          <button
-            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="p-2"
-            style={{ color: BRAND.textMuted }}
-          >
-            {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
-          </button>
         </div>
       </div>
-
-      {/* ── Mobile Menu ── */}
-      {mobileMenuOpen && (
-        <div
-          className="lg:hidden absolute top-full left-0 right-0 border-b p-5 flex flex-col gap-3 shadow-xl"
-          style={{ backgroundColor: BRAND.darkBg, borderColor: BRAND.borderSubtle }}
-        >
-          {/* User badge */}
-          <div
-            className="flex items-center gap-3 p-3 rounded-xl mb-1"
-            style={{ backgroundColor: "rgba(245, 158, 11, 0.08)" }}
-          >
-            <div
-              className="w-9 h-9 rounded-full flex items-center justify-center text-xs font-bold flex-shrink-0"
-              style={{ backgroundColor: "rgba(245, 158, 11, 0.15)", color: BRAND.primary }}
-            >
-              {(profile.displayName || profile.email || "U").charAt(0).toUpperCase()}
-            </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-sm font-bold truncate" style={{ color: BRAND.textBright }}>{profile.displayName}</span>
-              <span className="text-[10px] uppercase tracking-widest font-black" style={{ color: BRAND.primary }}>{examLabel || 'Student'}</span>
-            </div>
-          </div>
-
-          {/* Nav Links */}
-          {navLinks.map((link) => (
-            <Link
-              key={link.label}
-              to={link.to}
-              className="text-xs font-bold tracking-wider py-2 flex items-center gap-2"
-              style={{ color: BRAND.textBright }}
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              {link.icon} {link.label}
-            </Link>
-          ))}
-
-          <hr style={{ borderColor: BRAND.borderSubtle }} />
-
-          {/* Product Switcher — horizontal row */}
-          <div className="flex gap-2">
-            {PRODUCTS.map((product) => {
-              const isActive = product.id === CURRENT_PRODUCT;
-              return (
-                <a
-                  key={product.id}
-                  href={product.url}
-                  className="flex-1 py-2.5 text-center text-xs font-bold tracking-wide rounded-lg transition-all"
-                  style={{
-                    color: isActive ? BRAND.primary : BRAND.textMuted,
-                    backgroundColor: isActive ? "rgba(245, 158, 11, 0.1)" : "transparent",
-                    border: isActive ? `1px solid ${BRAND.primary}` : `1px solid ${BRAND.borderSubtle}`,
-                  }}
-                >
-                  {product.label}
-                </a>
-              );
-            })}
-          </div>
-
-          <hr style={{ borderColor: BRAND.borderSubtle }} />
-
-          {/* Logout */}
-          <button
-            onClick={handleLogout}
-            className="w-full py-2.5 text-center font-medium text-white rounded-xl flex items-center justify-center gap-2"
-            style={{ backgroundColor: "#d32f2f" }}
-          >
-            <LogOut size={16} /> Logout
-          </button>
-        </div>
-      )}
     </nav>
   );
 };
@@ -390,12 +275,15 @@ const Home = () => {
 /** Wrapper that provides sidebar state to Navbar + Sidebar */
 const AppShell = ({ children }: { children: React.ReactNode }) => {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { isPremium } = usePaywall();
+  const bannerVisible = !isPremium;
   return (
     <>
-      <Navbar onOpenSidebar={() => setSidebarOpen(true)} />
-      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <UpgradeBanner />
+      <Navbar onOpenSidebar={() => setSidebarOpen(true)} bannerVisible={bannerVisible} />
+      <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} bannerVisible={bannerVisible} />
       {/* Desktop: push content right to make room for fixed sidebar */}
-      <div className="lg:pl-56">
+      <div className="lg:pl-56" style={{ paddingTop: bannerVisible ? '36px' : '0' }}>
         {children}
       </div>
     </>
@@ -506,6 +394,16 @@ export default function App() {
                         <Route path="/notes" element={
                           <ProtectedRoute allowedRole="student">
                             <Notes />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/full-length-tests" element={
+                          <ProtectedRoute allowedRole="student">
+                            <FullLengthTests />
+                          </ProtectedRoute>
+                        } />
+                        <Route path="/full-length-test/:subject/:testId" element={
+                          <ProtectedRoute allowedRole="student">
+                            <FullLengthTestEngine />
                           </ProtectedRoute>
                         } />
 

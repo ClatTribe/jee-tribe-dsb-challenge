@@ -3,9 +3,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { collection, getDocs, query, orderBy, limit as fbLimit, where, Timestamp } from 'firebase/firestore';
 import { db } from '../firebase';
 import { generateWeeklyReport, WeeklyReport } from '../services/aiService';
+import MathText from '../components/MathRenderer';
 import { motion } from 'framer-motion';
 import { ArrowLeft, TrendingUp, TrendingDown, Minus, Brain, Target, BookOpen, Clock, Sparkles, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import PaywallOverlay from '../components/PaywallOverlay';
 
 const GRADE_COLORS: Record<string, { bg: string; text: string; ring: string }> = {
   'A+': { bg: 'bg-emerald-500', text: 'text-emerald-500', ring: 'ring-emerald-500/30' },
@@ -75,7 +77,9 @@ const MeriReport = () => {
         profile.displayName || 'Student',
         historyData,
         profile.currentStreak || 0,
-        profile.totalScore || 0
+        profile.totalScore || 0,
+        profile.exam,
+        profile.cuetDomains || (profile.cuetDomain ? [profile.cuetDomain] : undefined)
       );
 
       setReport(result);
@@ -120,6 +124,7 @@ const MeriReport = () => {
 
   return (
     <div className="space-y-6 pb-12">
+      <PaywallOverlay />
       {/* Header */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -158,7 +163,7 @@ const MeriReport = () => {
               <Sparkles size={16} className="text-amber-400" />
               <span className="text-[10px] font-black text-amber-400 uppercase tracking-widest">Weekly Grade</span>
             </div>
-            <p className="text-base md:text-lg font-medium text-slate-300 leading-relaxed">{report.overallMessage}</p>
+            <div className="text-base md:text-lg font-medium text-slate-300 leading-relaxed"><MathText text={report.overallMessage} /></div>
           </div>
         </div>
         <div className="absolute -right-20 -top-20 w-60 h-60 bg-amber-500/5 rounded-full blur-3xl" />
@@ -231,7 +236,7 @@ const MeriReport = () => {
           </h4>
           {report.strengths.map((s, i) => (
             <p key={i} className="text-sm text-slate-700 dark:text-slate-300 font-medium flex items-start gap-2">
-              <span className="text-emerald-500">✓</span> {s}
+              <span className="text-emerald-500">✓</span> <MathText text={s} />
             </p>
           ))}
         </div>
@@ -241,7 +246,7 @@ const MeriReport = () => {
           </h4>
           {report.weaknesses.map((w, i) => (
             <p key={i} className="text-sm text-slate-700 dark:text-slate-300 font-medium flex items-start gap-2">
-              <span className="text-rose-500">→</span> {w}
+              <span className="text-rose-500">→</span> <MathText text={w} />
             </p>
           ))}
         </div>
@@ -254,14 +259,14 @@ const MeriReport = () => {
             <Brain size={16} className="text-violet-500" /> Error Patterns
           </h4>
           {report.errorPatterns.map((p, i) => (
-            <p key={i} className="text-sm text-slate-600 dark:text-slate-400 font-medium">• {p}</p>
+            <div key={i} className="text-sm text-slate-600 dark:text-slate-400 font-medium">• <MathText text={p} /></div>
           ))}
         </div>
         <div className="bg-white/80 dark:bg-white/5 backdrop-blur-xl p-5 rounded-2xl border border-slate-200/50 dark:border-white/5 space-y-3">
           <h4 className="font-black text-slate-900 dark:text-white text-sm flex items-center gap-2">
             <Clock size={16} className="text-blue-500" /> Time Analysis
           </h4>
-          <p className="text-sm text-slate-600 dark:text-slate-400 font-medium">{report.timeAnalysis}</p>
+          <div className="text-sm text-slate-600 dark:text-slate-400 font-medium"><MathText text={report.timeAnalysis} /></div>
         </div>
       </div>
 
@@ -272,7 +277,7 @@ const MeriReport = () => {
           {report.nextWeekFocus.map((f, i) => (
             <div key={i} className="bg-white/50 dark:bg-white/5 p-3 rounded-xl border border-amber-500/10">
               <span className="text-amber-500 font-black text-lg mr-2">{i + 1}.</span>
-              <span className="text-sm font-medium text-slate-700 dark:text-slate-300">{f}</span>
+              <span className="text-sm font-medium text-slate-700 dark:text-slate-300"><MathText text={f} /></span>
             </div>
           ))}
         </div>
@@ -286,7 +291,7 @@ const MeriReport = () => {
         className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-2xl p-6 text-center"
       >
         <Sparkles size={24} className="text-amber-500 mx-auto mb-3" />
-        <p className="text-lg font-bold text-slate-700 dark:text-slate-300 leading-relaxed">{report.motivationalNote}</p>
+        <div className="text-lg font-bold text-slate-700 dark:text-slate-300 leading-relaxed"><MathText text={report.motivationalNote} /></div>
       </motion.div>
     </div>
   );

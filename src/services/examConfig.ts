@@ -46,8 +46,9 @@ Each question must test deep understanding, not just formula recall.`,
 REQUIREMENTS:
 - All questions JEE Mains difficulty (top 1% level)
 - Each question must have exactly 4 options with exactly 1 correct answer
+- Write the explanation as STEP-BY-STEP with each step on a NEW LINE (use \\n). Do NOT write the explanation as one long paragraph.
 - Include step-by-step explanation for each
-- Use LaTeX for all math expressions (wrap in $ for inline, $$ for block)
+- ALL math expressions MUST be wrapped in $...$ delimiters. This includes variables ($v$), equations ($F = ma$), fractions ($\\frac{1}{2}mv^2$), Greek letters ($\\theta$), and operators ($\\Rightarrow$). NEVER leave any LaTeX command like \\frac, \\sqrt, \\Rightarrow outside of $ delimiters. Wrap entire expressions in ONE pair of $...$, e.g. $v = \\sqrt{2gL}$ not $v$ = $\\sqrt{2gL}$.
 - Cover different topics within each subject
 - Mark difficulty as "Tough" or "Very Tough"
 
@@ -92,8 +93,9 @@ Questions must test conceptual clarity and NCERT mastery, not just memorization.
 REQUIREMENTS:
 - All questions NEET difficulty (top 1% level, NCERT-based but application-oriented)
 - Each question must have exactly 4 options with exactly 1 correct answer
+- Write the explanation as STEP-BY-STEP with each step on a NEW LINE (use \\n). Do NOT write the explanation as one long paragraph.
 - Include step-by-step explanation for each
-- Use LaTeX for all math/science expressions (wrap in $ for inline, $$ for block)
+- ALL math/science expressions MUST be wrapped in $...$ delimiters. This includes variables ($v$), equations ($F = ma$), fractions ($\\frac{1}{2}mv^2$), Greek letters ($\\theta$), chemical formulas ($H_2O$), and operators ($\\Rightarrow$). NEVER leave any LaTeX command outside of $ delimiters. Wrap entire expressions in ONE pair of $...$, e.g. $v = \\sqrt{2gL}$.
 - Cover different topics within each subject
 - Mark difficulty as "Tough" or "Very Tough"
 
@@ -138,7 +140,8 @@ Questions must test analytical thinking and conceptual understanding at 12th gra
 REQUIREMENTS:
 - All questions CUET UG difficulty (top percentile level)
 - Each question must have exactly 4 options with exactly 1 correct answer
-- Include step-by-step explanation for each
+- Write the explanation as STEP-BY-STEP with each step on a NEW LINE (use \\n). Do NOT write the explanation as one long paragraph.
+- Include step-by-step explanation for each. If any math is used, ALL math expressions MUST be wrapped in $...$ delimiters. NEVER leave LaTeX commands outside of $ delimiters.
 - Cover different topics within each section
 - Mark difficulty as "Tough" or "Very Tough"
 
@@ -146,12 +149,14 @@ ENGLISH TOPICS: Reading Comprehension, Vocabulary, Grammar, Para Jumbles, Error 
 GENERAL TEST TOPICS: Quantitative Aptitude (Arithmetic, Algebra, Data Interpretation), Logical Reasoning (Coding-Decoding, Blood Relations, Syllogisms), General Knowledge & Current Affairs
 DOMAIN SUBJECT TOPICS: General Awareness (Indian History, Geography, Polity, Economics), Current Affairs (last 6 months), Static GK`,
 
-  secondaryPrompt: `Generate CUET UG level questions:
+  secondaryPrompt: `Generate CUET UG level questions. This is for the CUET (Common University Entrance Test) exam, NOT JEE or NEET.
+Questions must be from CUET syllabus: English Language, General Test (GK, Logical Reasoning, Quantitative Aptitude), and Domain Subject.
+Do NOT generate JEE-style Physics/Chemistry/Mathematics problems. CUET questions are NCERT 12th-class level, not engineering entrance level.
 
-1. flashcards: 5 questions (Mix of English/General Test/Domain Subject) - conceptual one-liners with short answers
-2. suddenDeath: 5 questions (Mix of all sections) - rapid-fire MCQs, moderate difficulty
-3. skipOrSolve: 5 questions (Mix of all sections) - tricky questions where some are traps (isTrap: true) designed to waste time with similar options
-4. duels: 5 questions (Mix of all sections) - competitive-style MCQs, clear and unambiguous`,
+1. flashcards: 5 questions (Mix of English/General Test/Domain Subject) - conceptual one-liners with short answers based on NCERT
+2. suddenDeath: 5 questions (Mix of English/General Test/Domain Subject) - rapid-fire MCQs, moderate CUET-level difficulty
+3. skipOrSolve: 5 questions (Mix of English/General Test/Domain Subject) - tricky CUET questions where some are traps (isTrap: true) designed to waste time with similar options
+4. duels: 5 questions (Mix of English/General Test/Domain Subject) - competitive-style CUET MCQs, clear and unambiguous`,
 
   topicExamples: {
     English: ['Reading Comprehension', 'Vocabulary', 'Grammar', 'Para Jumbles', 'Error Spotting'],

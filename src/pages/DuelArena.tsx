@@ -31,24 +31,25 @@ const DuelArena = () => {
     if (!duelId || !profile) return;
 
     const unsubscribe = listenToDuel(duelId, (duel) => {
+      if (!duel || !duel.players || !duel.questions) return;
       setDuelData(duel);
       setQuestions(duel.questions);
-      
+
       // Update opponent info
       const opponentId = Object.keys(duel.players).find(id => id !== profile.uid);
-      if (opponentId) {
+      if (opponentId && duel.players[opponentId]) {
         const opp = duel.players[opponentId];
-        setOpponentName(opp.displayName);
-        setOpponentScore(opp.score);
-        setOpponentProgress((opp.currentIndex / duel.questions.length) * 100);
+        setOpponentName(opp.displayName || 'Opponent');
+        setOpponentScore(opp.score || 0);
+        setOpponentProgress(duel.questions.length > 0 ? ((opp.currentIndex || 0) / duel.questions.length) * 100 : 0);
         setIsBotMatch(!!(opp as any).isBot);
       }
 
       // Update user score from DB (in case of multi-device or sync)
       const user = duel.players[profile.uid];
       if (user) {
-        setUserScore(user.score);
-        setCurrentIndex(user.currentIndex);
+        setUserScore(user.score || 0);
+        setCurrentIndex(user.currentIndex || 0);
       }
 
       setLoading(false);
@@ -135,6 +136,14 @@ const DuelArena = () => {
   }
 
   const currentQuestion = questions[currentIndex];
+
+  if (!currentQuestion) {
+    return (
+      <div className="text-center py-12">
+        <p className="text-slate-500 font-bold">Loading question...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-5xl mx-auto space-y-5 md:space-y-8 pb-12 px-2 md:px-0">

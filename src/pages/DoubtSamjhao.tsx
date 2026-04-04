@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Send, Bot, User, Sparkles, BookOpen, AlertCircle, Loader2 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import MathText from '../components/MathRenderer';
+import PaywallOverlay from '../components/PaywallOverlay';
 
 interface QuestionContext {
   questionText: string;
@@ -182,6 +183,7 @@ const DoubtSamjhao = () => {
 
   return (
     <div className="flex flex-col h-[calc(100vh-120px)] max-h-[800px]">
+      <PaywallOverlay />
       {/* Header */}
       <div className="flex items-center justify-between mb-4 shrink-0">
         <div className="flex items-center gap-4">

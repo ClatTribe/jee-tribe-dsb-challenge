@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { Flame, Trophy, Award, BarChart3, BookOpen, Zap, ChevronRight, ArrowRight, Target, Brain, Users, Star, Shield, TrendingUp, Clock, CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -284,10 +284,16 @@ const Login = () => {
   const { loginWithGoogle, user } = useAuth();
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   React.useEffect(() => {
-    if (user) navigate('/');
-  }, [user, navigate]);
+    if (user) {
+      // Redirect to the page they were trying to visit, or default to home
+      const from = (location.state as any)?.from?.pathname || '/';
+      const search = (location.state as any)?.from?.search || '';
+      navigate(from + search, { replace: true });
+    }
+  }, [user, navigate, location.state]);
 
   const handleGoogleLogin = async () => {
     setIsLoggingIn(true);

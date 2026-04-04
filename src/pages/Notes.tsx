@@ -14,6 +14,10 @@ import {
   X,
 } from 'lucide-react';
 import { GoogleGenAI, Type } from '@google/genai';
+import { db } from '../firebase';
+import { doc, getDoc, setDoc } from 'firebase/firestore';
+import MathText from '../components/MathRenderer';
+import PaywallOverlay from '../components/PaywallOverlay';
 
 // Initialize Gemini AI
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
@@ -163,16 +167,61 @@ const Notes: React.FC = () => {
     }
   };
 
+  // ─── Firestore cache helpers ───
+  const firestoreDocId = (mode: string, exam: string, subject: string, topic: string) =>
+    `${mode}_${exam}_${subject}_${topic}`.replace(/[\/\s]+/g, '_');
+
+  const getFirestoreCache = async (mode: string, subject: string, topic: string) => {
+    try {
+      const docRef = doc(db, 'studyContent', firestoreDocId(mode, selectedExam || '', subject, topic));
+      const snap = await getDoc(docRef);
+      if (snap.exists()) return snap.data().content;
+    } catch (e) {
+      console.warn('Firestore cache read failed:', e);
+    }
+    return null;
+  };
+
+  const setFirestoreCache = async (mode: string, subject: string, topic: string, data: any) => {
+    try {
+      const docRef = doc(db, 'studyContent', firestoreDocId(mode, selectedExam || '', subject, topic));
+      await setDoc(docRef, {
+        content: data,
+        mode,
+        exam: selectedExam,
+        subject,
+        topic,
+        createdAt: new Date().toISOString(),
+      });
+    } catch (e) {
+      console.warn('Firestore cache write failed:', e);
+    }
+  };
+
   // Generate flashcards
   const generateFlashcards = async (topic: string, subject: string) => {
     setLoading(true);
     setError(null);
 
     const cacheKey = `notes-flashcards-${selectedExam}-${subject}-${topic}`;
+
+    // 1. Check Firestore first
+    const firestoreCached = await getFirestoreCache('flashcards', subject, topic);
+    if (firestoreCached) {
+      localStorage.setItem(cacheKey, JSON.stringify(firestoreCached));
+      setContent(firestoreCached);
+      setLoading(false);
+      return;
+    }
+
+    // 2. Check localStorage
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       try {
-        setContent(JSON.parse(cached));
+        const parsed = JSON.parse(cached);
+        setContent(parsed);
+        // Backfill Firestore
+        setFirestoreCache('flashcards', subject, topic, parsed);
         setLoading(false);
         return;
       } catch (e) {
@@ -218,6 +267,7 @@ Return a JSON object with a 'flashcards' array where each item has 'front' and '
       const flashcards = data.flashcards || [];
 
       localStorage.setItem(cacheKey, JSON.stringify(flashcards));
+      setFirestoreCache('flashcards', subject, topic, flashcards);
       setContent(flashcards);
     } catch (err) {
       setError(
@@ -236,10 +286,23 @@ Return a JSON object with a 'flashcards' array where each item has 'front' and '
     setError(null);
 
     const cacheKey = `notes-infographics-${selectedExam}-${subject}-${topic}`;
+
+    // 1. Check Firestore first
+    const firestoreCached = await getFirestoreCache('infographics', subject, topic);
+    if (firestoreCached) {
+      localStorage.setItem(cacheKey, JSON.stringify(firestoreCached));
+      setContent(firestoreCached);
+      setLoading(false);
+      return;
+    }
+
+    // 2. Check localStorage
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       try {
-        setContent(JSON.parse(cached));
+        const parsed = JSON.parse(cached);
+        setContent(parsed);
+        setFirestoreCache('infographics', subject, topic, parsed);
         setLoading(false);
         return;
       } catch (e) {
@@ -286,6 +349,7 @@ Include 4-6 sections covering all key concepts.`;
       const data = safeParseGeminiJSON(response.text || '{}');
 
       localStorage.setItem(cacheKey, JSON.stringify(data));
+      setFirestoreCache('infographics', subject, topic, data);
       setContent(data);
     } catch (err) {
       setError(
@@ -304,10 +368,23 @@ Include 4-6 sections covering all key concepts.`;
     setError(null);
 
     const cacheKey = `notes-slides-${selectedExam}-${subject}-${topic}`;
+
+    // 1. Check Firestore first
+    const firestoreCached = await getFirestoreCache('slides', subject, topic);
+    if (firestoreCached) {
+      localStorage.setItem(cacheKey, JSON.stringify(firestoreCached));
+      setContent(firestoreCached);
+      setLoading(false);
+      return;
+    }
+
+    // 2. Check localStorage
     const cached = localStorage.getItem(cacheKey);
     if (cached) {
       try {
-        setContent(JSON.parse(cached));
+        const parsed = JSON.parse(cached);
+        setContent(parsed);
+        setFirestoreCache('slides', subject, topic, parsed);
         setLoading(false);
         return;
       } catch (e) {
@@ -357,6 +434,7 @@ Return a JSON object with a 'slides' array.`;
       const slides = data.slides || [];
 
       localStorage.setItem(cacheKey, JSON.stringify(slides));
+      setFirestoreCache('slides', subject, topic, slides);
       setContent(slides);
     } catch (err) {
       setError(
@@ -421,46 +499,64 @@ Return a JSON object with a 'slides' array.`;
     );
   }
 
+  // Topic color mapping for visual variety
+  const topicColors = [
+    { dot: 'bg-amber-400', border: 'border-amber-200 dark:border-amber-700/50' },
+    { dot: 'bg-blue-400', border: 'border-blue-200 dark:border-blue-700/50' },
+    { dot: 'bg-emerald-400', border: 'border-emerald-200 dark:border-emerald-700/50' },
+    { dot: 'bg-purple-400', border: 'border-purple-200 dark:border-purple-700/50' },
+    { dot: 'bg-rose-400', border: 'border-rose-200 dark:border-rose-700/50' },
+    { dot: 'bg-cyan-400', border: 'border-cyan-200 dark:border-cyan-700/50' },
+  ];
+
+  const getTopicColor = (index: number) => topicColors[index % topicColors.length];
+
   return (
     <div className="px-4 py-4 md:py-8">
+      <PaywallOverlay />
       <div className="max-w-6xl mx-auto">
         {/* Header */}
         <div className="mb-6">
           <div className="flex items-center gap-3 mb-1">
             <Brain className="w-7 h-7 text-amber-500" />
             <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">Notes & Study Material</h1>
-            <Sparkles className="w-5 h-5 text-amber-500" />
           </div>
           <p className="text-slate-500 dark:text-slate-400 text-sm md:text-base">
             Master every concept with flashcards, infographics, and slides
           </p>
         </div>
 
-        {/* Mode Tabs */}
-        <div className="grid grid-cols-3 gap-3 md:gap-4 mb-8">
+        {/* Mode Tabs - Compact Pill Style */}
+        <div className="mb-8 flex flex-wrap gap-2">
           {[
-            { id: 'flashcards', icon: BookOpen, label: 'Flashcards', desc: 'Quick revision cards' },
-            { id: 'infographics', icon: Image, label: 'Infographics', desc: 'Visual summaries' },
-            { id: 'slides', icon: Layers, label: 'Slides', desc: 'Topic presentations' },
+            { id: 'flashcards', icon: BookOpen, label: 'Flashcards', comingSoon: false },
+            { id: 'infographics', icon: Image, label: 'Infographics', comingSoon: false },
+            { id: 'slides', icon: Layers, label: 'Slides', comingSoon: false },
           ].map((mode) => {
             const Icon = mode.icon;
             const isModeActive = activeMode === mode.id;
             return (
-              <motion.button
-                key={mode.id}
-                onClick={() => setActiveMode(mode.id as ContentMode)}
-                className={`p-4 md:p-6 rounded-xl border-2 transition-all ${
-                  isModeActive
-                    ? 'bg-amber-50 dark:bg-amber-500/10 border-amber-400 dark:border-amber-500 shadow-md shadow-amber-100 dark:shadow-amber-500/20'
-                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                }`}
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Icon className={`w-7 h-7 mx-auto mb-2 ${isModeActive ? 'text-amber-600 dark:text-amber-400' : 'text-slate-400 dark:text-slate-500'}`} />
-                <div className={`font-semibold text-sm ${isModeActive ? 'text-amber-700 dark:text-amber-300' : 'text-slate-700 dark:text-white'}`}>{mode.label}</div>
-                <div className="text-xs text-slate-400 dark:text-slate-500">{mode.desc}</div>
-              </motion.button>
+              <div key={mode.id} className="relative">
+                <motion.button
+                  onClick={() => !mode.comingSoon && setActiveMode(mode.id as ContentMode)}
+                  disabled={mode.comingSoon}
+                  className={`flex items-center gap-2 px-4 py-2.5 rounded-full border-2 transition-all text-sm font-semibold ${
+                    isModeActive
+                      ? 'bg-amber-500 dark:bg-amber-600 border-amber-500 dark:border-amber-600 text-white shadow-md shadow-amber-200 dark:shadow-amber-500/30'
+                      : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:border-slate-300 dark:hover:border-slate-600'
+                  } ${mode.comingSoon ? 'cursor-not-allowed opacity-75' : ''}`}
+                  whileHover={!mode.comingSoon ? { scale: 1.05 } : {}}
+                  whileTap={!mode.comingSoon ? { scale: 0.95 } : {}}
+                >
+                  <Icon className="w-4 h-4" />
+                  {mode.label}
+                </motion.button>
+                {mode.comingSoon && (
+                  <div className="absolute top-1 right-1 bg-slate-900 dark:bg-slate-400 text-white dark:text-slate-900 text-xs px-2 py-0.5 rounded-full font-bold whitespace-nowrap">
+                    Coming Soon
+                  </div>
+                )}
+              </div>
             );
           })}
         </div>
@@ -470,24 +566,27 @@ Return a JSON object with a 'slides' array.`;
           <div className="mb-8">
             <h2 className="text-lg font-semibold text-slate-900 dark:text-white mb-4">Select Subject</h2>
             <div className="flex flex-wrap gap-2">
-              {(examConfig?.subjects || []).map((subject) => (
-                <motion.button
-                  key={subject}
-                  onClick={() => {
-                    setSelectedSubject(subject);
-                    setCurrentIndex(0);
-                  }}
-                  className={`px-4 py-2 rounded-full font-semibold text-sm transition-all ${
-                    selectedSubject === subject
-                      ? 'bg-amber-500 text-white shadow-md shadow-amber-200 dark:shadow-amber-500/30'
-                      : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
-                  }`}
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                >
-                  {subject}
-                </motion.button>
-              ))}
+              {(examConfig?.subjects || []).map((subject) => {
+                const subjectTopics = examConfig?.topicExamples[subject] || [];
+                return (
+                  <motion.button
+                    key={subject}
+                    onClick={() => {
+                      setSelectedSubject(subject);
+                      setCurrentIndex(0);
+                    }}
+                    className={`px-4 py-2 rounded-full font-semibold text-sm transition-all ${
+                      selectedSubject === subject
+                        ? 'bg-amber-500 text-white shadow-md shadow-amber-200 dark:shadow-amber-500/30'
+                        : 'bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700'
+                    }`}
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                  >
+                    {subject} ({subjectTopics.length})
+                  </motion.button>
+                );
+              })}
             </div>
           </div>
         )}
@@ -501,25 +600,31 @@ Return a JSON object with a 'slides' array.`;
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
-              className="grid grid-cols-1 md:grid-cols-2 gap-3"
+              className="grid grid-cols-1 md:grid-cols-2 gap-4"
             >
-              {topics.map((topic) => (
-                <motion.button
-                  key={topic}
-                  onClick={() => handleTopicClick(topic)}
-                  className="p-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-amber-400 dark:hover:border-amber-500 transition-all text-left hover:shadow-md"
-                  whileHover={{ scale: 1.02, y: -2 }}
-                  whileTap={{ scale: 0.98 }}
-                >
-                  <div className="flex items-center justify-between">
-                    <h3 className="text-base font-semibold text-slate-900 dark:text-white">{topic}</h3>
-                    <ChevronRight className="w-5 h-5 text-amber-500" />
-                  </div>
-                  <p className="text-sm text-slate-400 dark:text-slate-500 mt-1">
-                    Click to generate {activeMode}
-                  </p>
-                </motion.button>
-              ))}
+              {topics.map((topic, topicIndex) => {
+                const colors = getTopicColor(topicIndex);
+                return (
+                  <motion.button
+                    key={topic}
+                    onClick={() => handleTopicClick(topic)}
+                    className={`p-5 bg-white dark:bg-slate-800 border-2 ${colors.border} rounded-xl transition-all text-left hover:shadow-lg hover:shadow-slate-200 dark:hover:shadow-slate-900`}
+                    whileHover={{ scale: 1.03, y: -4 }}
+                    whileTap={{ scale: 0.97 }}
+                  >
+                    <div className="flex items-center justify-between mb-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`w-3 h-3 rounded-full ${colors.dot}`} />
+                        <h3 className="text-base font-semibold text-slate-900 dark:text-white">{topic}</h3>
+                      </div>
+                      <ChevronRight className="w-5 h-5 text-slate-300 dark:text-slate-600 group-hover:text-amber-500 transition-colors" />
+                    </div>
+                    <p className="text-sm text-slate-500 dark:text-slate-400 ml-6">
+                      {activeMode === 'flashcards' ? 'Generate flashcards' : activeMode === 'infographics' ? 'Generate infographic' : 'Generate slides'}
+                    </p>
+                  </motion.button>
+                );
+              })}
             </motion.div>
           ) : (
             // Content View
@@ -529,51 +634,64 @@ Return a JSON object with a 'slides' array.`;
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -20 }}
             >
-              {/* Back Button */}
-              <button
+              {/* Back Button - Prominent */}
+              <motion.button
                 onClick={() => {
                   setSelectedTopic(null);
                   setContent(null);
                   setCurrentIndex(0);
                   setError(null);
                 }}
-                className="mb-6 flex items-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-lg transition-all text-sm font-medium"
+                className="mb-6 flex items-center gap-2 px-4 py-2.5 bg-slate-200 dark:bg-slate-700 hover:bg-slate-300 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 rounded-lg transition-all text-sm font-semibold"
+                whileHover={{ scale: 1.05, x: -4 }}
+                whileTap={{ scale: 0.95 }}
               >
                 <ArrowLeft className="w-4 h-4" />
                 Back to Topics
-              </button>
+              </motion.button>
 
               {loading && (
-                <div className="flex flex-col items-center justify-center py-12">
+                <motion.div
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="flex flex-col items-center justify-center py-16 bg-slate-50 dark:bg-slate-800/30 rounded-xl border-2 border-dashed border-slate-200 dark:border-slate-700"
+                >
                   <motion.div
                     animate={{ rotate: 360 }}
                     transition={{ duration: 2, repeat: Infinity }}
-                    className="w-12 h-12 border-4 border-slate-200 dark:border-slate-600 border-t-amber-500 rounded-full mb-4"
+                    className="w-14 h-14 border-4 border-slate-200 dark:border-slate-600 border-t-amber-500 rounded-full mb-4"
                   />
-                  <p className="text-slate-500 dark:text-slate-300">
-                    Generating {activeMode} for {selectedTopic}...
+                  <p className="text-slate-600 dark:text-slate-300 font-medium">
+                    Generating {activeMode} for <span className="text-amber-600 dark:text-amber-400 font-semibold">{selectedTopic}</span>
                   </p>
-                </div>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-2">This may take a moment...</p>
+                </motion.div>
               )}
 
               {error && (
-                <div className="bg-red-50 dark:bg-red-500/20 border border-red-200 dark:border-red-500 rounded-xl p-6 mb-6">
-                  <div className="flex items-center justify-between">
+                <motion.div
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-red-50 dark:bg-red-500/20 border-2 border-red-200 dark:border-red-500 rounded-xl p-6 mb-6"
+                >
+                  <div className="flex items-start justify-between gap-4">
                     <div>
-                      <h3 className="font-semibold text-red-700 dark:text-red-200 mb-2">Error</h3>
+                      <h3 className="font-semibold text-red-700 dark:text-red-200 mb-1">Generation Failed</h3>
                       <p className="text-red-600 dark:text-red-100 text-sm">{error}</p>
                     </div>
-                    <button
+                    <motion.button
                       onClick={() => {
                         setError(null);
-                        handleTopicClick(selectedTopic);
+                        handleTopicClick(selectedTopic!);
                       }}
-                      className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all whitespace-nowrap ml-4 text-sm font-medium"
+                      className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white rounded-lg transition-all whitespace-nowrap text-sm font-medium flex-shrink-0"
+                      whileHover={{ scale: 1.05 }}
+                      whileTap={{ scale: 0.95 }}
                     >
                       Retry
-                    </button>
+                    </motion.button>
                   </div>
-                </div>
+                </motion.div>
               )}
 
               {content && !loading && (
@@ -599,9 +717,9 @@ Return a JSON object with a 'slides' array.`;
                               style={{ backfaceVisibility: 'hidden' }}
                             >
                               <p className="text-sm text-amber-600 dark:text-amber-400 mb-4 font-semibold">QUESTION</p>
-                              <p className="text-xl md:text-2xl font-semibold text-slate-900 dark:text-white leading-relaxed text-center">
-                                {content[currentIndex]?.front}
-                              </p>
+                              <div className="text-xl md:text-2xl font-semibold text-slate-900 dark:text-white leading-relaxed text-center">
+                                <MathText text={content[currentIndex]?.front || ''} />
+                              </div>
                               <p className="absolute bottom-4 right-4 text-xs text-slate-400">Click to flip</p>
                             </div>
                             {/* Back */}
@@ -610,9 +728,9 @@ Return a JSON object with a 'slides' array.`;
                               style={{ backfaceVisibility: 'hidden', transform: 'rotateY(180deg)' }}
                             >
                               <p className="text-sm text-emerald-600 dark:text-emerald-400 mb-4 font-semibold">ANSWER</p>
-                              <p className="text-lg md:text-xl font-medium text-slate-800 dark:text-white leading-relaxed text-center">
-                                {content[currentIndex]?.back}
-                              </p>
+                              <div className="text-lg md:text-xl font-medium text-slate-800 dark:text-white leading-relaxed text-center">
+                                <MathText text={content[currentIndex]?.back || ''} />
+                              </div>
                               <p className="absolute bottom-4 right-4 text-xs text-slate-400">Click to flip back</p>
                             </div>
                           </motion.div>
@@ -660,7 +778,7 @@ Return a JSON object with a 'slides' array.`;
                   {activeMode === 'infographics' && (
                     <div>
                       <h2 className="text-2xl md:text-3xl font-bold mb-6 text-amber-600 dark:text-amber-400">
-                        {content.title}
+                        <MathText text={content.title || ''} />
                       </h2>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {content.sections?.map(
@@ -676,7 +794,7 @@ Return a JSON object with a 'slides' array.`;
                                 className={`bg-gradient-to-br ${colorClass} rounded-xl p-6 shadow-lg`}
                               >
                                 <h3 className="text-xl font-bold text-white mb-4">
-                                  {section.heading}
+                                  <MathText text={section.heading} />
                                 </h3>
                                 <ul className="space-y-2 mb-4">
                                   {section.points?.map((point, pidx) => (
@@ -685,7 +803,7 @@ Return a JSON object with a 'slides' array.`;
                                       className="flex items-start gap-2 text-white/90"
                                     >
                                       <ChevronRight className="w-4 h-4 mt-1 flex-shrink-0" />
-                                      <span>{point}</span>
+                                      <span><MathText text={point} /></span>
                                     </li>
                                   ))}
                                 </ul>
@@ -694,9 +812,9 @@ Return a JSON object with a 'slides' array.`;
                                     <p className="text-xs text-white/70 mb-1">
                                       Key Formula
                                     </p>
-                                    <p className="font-mono text-white font-bold">
-                                      {section.keyFormula}
-                                    </p>
+                                    <div className="font-mono text-white font-bold">
+                                      <MathText text={section.keyFormula} />
+                                    </div>
                                   </div>
                                 )}
                               </motion.div>
@@ -712,7 +830,7 @@ Return a JSON object with a 'slides' array.`;
                       {/* Slide */}
                       <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-8 md:p-12 mb-8 min-h-80 md:min-h-96 flex flex-col justify-center shadow-lg">
                         <h2 className="text-2xl md:text-4xl font-bold text-amber-600 dark:text-amber-400 mb-6 md:mb-8">
-                          {content[currentIndex]?.title}
+                          <MathText text={content[currentIndex]?.title || ''} />
                         </h2>
                         <ul className="space-y-3 md:space-y-4 text-base md:text-lg text-slate-700 dark:text-white/90 mb-6 md:mb-8">
                           {content[currentIndex]?.bulletPoints?.map(
@@ -725,7 +843,7 @@ Return a JSON object with a 'slides' array.`;
                                 className="flex items-start gap-3"
                               >
                                 <span className="text-amber-500 font-bold mt-1">•</span>
-                                <span>{point}</span>
+                                <span><MathText text={point} /></span>
                               </motion.li>
                             )
                           )}
@@ -733,7 +851,7 @@ Return a JSON object with a 'slides' array.`;
                         {content[currentIndex]?.speakerNotes && (
                           <div className="bg-slate-50 dark:bg-slate-900/50 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
                             <p className="text-xs text-slate-400 uppercase tracking-wide mb-1">Speaker Notes</p>
-                            <p className="text-sm text-slate-600 dark:text-slate-300">{content[currentIndex]?.speakerNotes}</p>
+                            <div className="text-sm text-slate-600 dark:text-slate-300"><MathText text={content[currentIndex]?.speakerNotes || ''} /></div>
                           </div>
                         )}
                       </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { collection, getDocs, query, limit, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, limit, orderBy, where, doc, updateDoc } from 'firebase/firestore';
 import { db } from '../firebase';
-import { Users, Database, Trophy, TrendingUp, Activity, Clock, ChevronRight, RefreshCw, CheckCircle2, AlertCircle, Eye } from 'lucide-react';
+import { Users, Database, Trophy, TrendingUp, Activity, Clock, ChevronRight, RefreshCw, CheckCircle2, AlertCircle, Eye, Crown, Search, ToggleLeft, ToggleRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { seedDatabase } from '../utils/seedData';
 import { useNavigate } from 'react-router-dom';
@@ -17,6 +17,70 @@ const AdminDashboard = () => {
   const [isSeeding, setIsSeeding] = useState(false);
   const [seedStatus, setSeedStatus] = useState<'idle' | 'success' | 'error'>('idle');
   const navigate = useNavigate();
+
+  // Premium user management
+  const [searchEmail, setSearchEmail] = useState('');
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [toggleLoading, setToggleLoading] = useState<string | null>(null);
+  const [allUsers, setAllUsers] = useState<any[]>([]);
+
+  const searchUsers = async () => {
+    if (!searchEmail.trim()) {
+      // Show all users if search is empty
+      loadAllUsers();
+      return;
+    }
+    setSearching(true);
+    try {
+      const usersRef = collection(db, 'users');
+      const snap = await getDocs(usersRef);
+      const results = snap.docs
+        .map(d => ({ id: d.id, ...d.data() }))
+        .filter((u: any) =>
+          u.email?.toLowerCase().includes(searchEmail.toLowerCase()) ||
+          u.displayName?.toLowerCase().includes(searchEmail.toLowerCase())
+        );
+      setSearchResults(results);
+    } catch (err) {
+      console.error('Search error:', err);
+    } finally {
+      setSearching(false);
+    }
+  };
+
+  const loadAllUsers = async () => {
+    try {
+      const snap = await getDocs(collection(db, 'users'));
+      const users = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setAllUsers(users);
+      setSearchResults(users);
+    } catch (err) {
+      console.error('Load users error:', err);
+    }
+  };
+
+  const togglePremium = async (userId: string, currentStatus: boolean) => {
+    setToggleLoading(userId);
+    try {
+      const userRef = doc(db, 'users', userId);
+      await updateDoc(userRef, {
+        isPremium: !currentStatus,
+        ...((!currentStatus) ? { premiumSince: new Date().toISOString() } : {}),
+      });
+      // Update local state
+      setSearchResults(prev =>
+        prev.map(u => u.id === userId ? { ...u, isPremium: !currentStatus } : u)
+      );
+      setAllUsers(prev =>
+        prev.map(u => u.id === userId ? { ...u, isPremium: !currentStatus } : u)
+      );
+    } catch (err) {
+      console.error('Toggle premium error:', err);
+    } finally {
+      setToggleLoading(null);
+    }
+  };
 
   const fetchStats = async () => {
     try {
@@ -47,6 +111,7 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     fetchStats();
+    loadAllUsers();
   }, []);
 
   const handleSeed = async () => {
@@ -191,6 +256,98 @@ const AdminDashboard = () => {
               "You can now use LaTeX in question explanations too. Providing detailed step-by-step solutions significantly improves student retention and platform satisfaction."
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* ── Premium User Management ── */}
+      <div className="bg-white p-8 rounded-[2.5rem] border border-slate-200 shadow-sm">
+        <div className="flex items-center justify-between mb-6">
+          <h3 className="text-xl font-display font-black text-slate-900 flex items-center gap-3">
+            <Crown size={24} className="text-amber-500" /> Manage Premium Users
+          </h3>
+          <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">
+            {allUsers.filter((u: any) => u.isPremium).length} premium / {allUsers.length} total
+          </span>
+        </div>
+
+        {/* Search bar */}
+        <div className="flex gap-3 mb-6">
+          <div className="flex-1 relative">
+            <Search size={18} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              placeholder="Search by email or name..."
+              value={searchEmail}
+              onChange={(e) => setSearchEmail(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && searchUsers()}
+              className="w-full pl-11 pr-4 py-3 rounded-xl border border-slate-200 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 dark:bg-slate-800 dark:border-slate-700 dark:text-white"
+            />
+          </div>
+          <button
+            onClick={searchUsers}
+            disabled={searching}
+            className="px-6 py-3 bg-amber-500 text-white rounded-xl font-black text-xs uppercase tracking-widest hover:bg-amber-600 transition-colors disabled:opacity-50"
+          >
+            {searching ? 'Searching...' : 'Search'}
+          </button>
+        </div>
+
+        {/* Users list */}
+        <div className="space-y-2 max-h-[400px] overflow-y-auto">
+          {searchResults.length > 0 ? searchResults.map((user: any) => (
+            <div
+              key={user.id}
+              className={`flex items-center justify-between p-4 rounded-2xl border transition-all ${
+                user.isPremium
+                  ? 'border-amber-200 bg-amber-50/50 dark:border-amber-500/20 dark:bg-amber-500/5'
+                  : 'border-slate-100 hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-800'
+              }`}
+            >
+              <div className="flex items-center gap-4">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
+                  user.isPremium
+                    ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-400'
+                    : 'bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300'
+                }`}>
+                  {(user.displayName || user.email || 'U').charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-slate-900 dark:text-white">
+                    {user.displayName || 'No Name'}
+                    {user.isPremium && (
+                      <span className="ml-2 inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-700 text-[10px] font-black uppercase dark:bg-amber-500/20 dark:text-amber-400">
+                        <Crown size={10} /> Pro
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400">
+                    {user.email} · {user.exam || 'No exam'} · Joined {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => togglePremium(user.id, !!user.isPremium)}
+                disabled={toggleLoading === user.id}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl font-black text-xs uppercase tracking-wider transition-all ${
+                  user.isPremium
+                    ? 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 dark:bg-red-500/10 dark:border-red-500/20'
+                    : 'bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 dark:bg-amber-500/10 dark:border-amber-500/20'
+                }`}
+              >
+                {toggleLoading === user.id ? (
+                  <RefreshCw size={14} className="animate-spin" />
+                ) : user.isPremium ? (
+                  <><ToggleRight size={16} /> Revoke</>
+                ) : (
+                  <><ToggleLeft size={16} /> Make Pro</>
+                )}
+              </button>
+            </div>
+          )) : (
+            <div className="text-center py-8 text-slate-400 font-medium">
+              {searchEmail ? 'No users found matching your search.' : 'Loading users...'}
+            </div>
+          )}
         </div>
       </div>
     </div>

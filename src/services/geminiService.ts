@@ -197,11 +197,22 @@ const SKIP_SOLVE_QUESTION_SCHEMA = {
 };
 
 
-const LATEX_INSTRUCTIONS = `IMPORTANT JSON + MATH RULES:
-  - Wrap math in $...$ delimiters (e.g., $x^2$, $H_2O$, $\\alpha$).
+const LATEX_INSTRUCTIONS = `CRITICAL JSON + MATH FORMATTING RULES:
+  - EVERY math expression MUST be wrapped in $...$ delimiters. No exceptions.
+  - This includes: variables (like $v$, $m$, $F$), equations ($F = ma$), fractions ($\\frac{1}{2}mv^2$), Greek letters ($\\alpha$, $\\theta$), subscripts ($H_2O$, $v_0$), superscripts ($x^2$), and operators ($\\Rightarrow$, $\\times$).
+  - WRONG: "velocity v = sqrt(2gL)" or "F = \\frac{1}{2}mv^2"
+  - CORRECT: "velocity $v = \\sqrt{2gL}$" or "$F = \\frac{1}{2}mv^2$"
+  - In explanations, wrap the ENTIRE math expression in ONE pair of $...$, not each symbol separately. Write $F = \\frac{1}{2}mv^2$ NOT $F$ = $\\frac{1}{2}$$mv^2$.
+  - NEVER leave \\frac, \\sqrt, \\Rightarrow, \\times, \\alpha, or ANY LaTeX command outside of $ delimiters.
   - NEVER use double quotes inside math expressions. Use single quotes if needed.
   - All backslashes in LaTeX MUST be properly escaped for JSON (use \\\\theta not \\theta).
-  - Keep question text clean and concise.`;
+  - Keep question text clean and concise.
+
+EXPLANATION FORMAT RULES:
+  - Write the explanation as STEP-BY-STEP, with each step on a NEW LINE (use \\n between steps).
+  - Each step should be one clear logical thought or calculation.
+  - Example: "Step 1: Identify the given values.\\nWe have $m = 2$ kg and $v = 5$ m/s.\\nStep 2: Apply conservation of energy.\\n$\\frac{1}{2}mv^2 = mgh$\\nStep 3: Solve for $h$.\\n$h = \\frac{v^2}{2g} = \\frac{25}{20} = 1.25$ m"
+  - DO NOT write the entire explanation as one long paragraph.`;
 
 const MODEL = "gemini-2.5-flash";
 
@@ -336,7 +347,8 @@ export const generateDailyQuestions = async (exam: ExamType = DEFAULT_EXAM, cuet
   return generateQuestionsForDate(todayStr, exam, cuetDomain);
 };
 
-let generationPromise: Promise<DailyQuestions> | null = null;
+// Map of exam-keyed generation promises to prevent parallel generation PER EXAM
+const generationPromises: Record<string, Promise<DailyQuestions>> = {};
 
 // Timeout wrapper — ensures we never hang forever waiting for Gemini
 function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
@@ -383,12 +395,27 @@ async function preGenerateTomorrow(exam: ExamType = DEFAULT_EXAM): Promise<void>
   }
 }
 
+// Cache version — bump this to invalidate old localStorage entries
+const DAILY_Q_CACHE_VERSION = 'v2';
+
 export const getDailyQuestions = async (exam: ExamType = DEFAULT_EXAM, cuetDomain?: string): Promise<DailyQuestions> => {
   const today = new Date().toISOString().split('T')[0];
   // Include domain in key for CUET so different domains get different questions
   const domainSuffix = exam === 'CUET' && cuetDomain ? `-${cuetDomain.replace(/\s+/g, '')}` : '';
   const docKey = `${today}-${exam}${domainSuffix}`;
-  const lsKey = `daily_questions_${exam}${domainSuffix}`;
+  const lsKey = `${DAILY_Q_CACHE_VERSION}_daily_questions_${exam}${domainSuffix}`;
+
+  // Clean up old cache entries (pre-v2) on first run
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && key.startsWith('daily_questions_') && !key.startsWith(DAILY_Q_CACHE_VERSION)) {
+        keysToRemove.push(key);
+      }
+    }
+    keysToRemove.forEach(k => localStorage.removeItem(k));
+  } catch (_) {}
 
   // 1. Try Firestore first (Fastest, shared across all users)
   try {
@@ -438,19 +465,20 @@ export const getDailyQuestions = async (exam: ExamType = DEFAULT_EXAM, cuetDomai
   }
 
   // 3. Generate and Save (First user of the day)
-  // Use a promise lock to prevent parallel generation, but with a staleness guard
-  if (generationPromise) {
+  // Use a per-exam promise lock to prevent parallel generation
+  const promiseKey = docKey; // exam-specific key so JEE/NEET/CUET don't share
+  if (generationPromises[promiseKey]) {
     try {
-      return await withTimeout(generationPromise, 100_000, 'Pending generation wait');
+      return await withTimeout(generationPromises[promiseKey], 100_000, 'Pending generation wait');
     } catch (e) {
       console.warn("Pending generation failed or timed out, retrying fresh:", e);
-      generationPromise = null;
+      delete generationPromises[promiseKey];
     }
   }
 
-  generationPromise = (async () => {
+  generationPromises[promiseKey] = (async () => {
     try {
-      console.log("Generating new questions for today...");
+      console.log(`Generating new questions for ${docKey}...`);
       const questions = await generateDailyQuestions(exam, cuetDomain);
 
       // Validate that we actually got questions
@@ -462,7 +490,7 @@ export const getDailyQuestions = async (exam: ExamType = DEFAULT_EXAM, cuetDomai
       try {
         const docRef = doc(db, 'dailyQuestions', docKey);
         await setDoc(docRef, questions);
-        console.log("Saved daily questions to Firestore");
+        console.log(`Saved daily questions to Firestore (${docKey})`);
       } catch (error) {
         console.error("Error saving to Firestore:", error);
       }
@@ -476,14 +504,13 @@ export const getDailyQuestions = async (exam: ExamType = DEFAULT_EXAM, cuetDomai
       return questions;
     } catch (error) {
       console.error("Failed to generate daily questions:", error);
-      // Throw instead of returning empty — let the caller handle the error
       throw error;
     } finally {
-      generationPromise = null;
+      delete generationPromises[promiseKey];
     }
   })();
 
-  return generationPromise;
+  return generationPromises[promiseKey];
 };
 
 export const extractQuestionFromImage = async (base64Data: string, mimeType: string) => {
@@ -495,10 +522,10 @@ export const extractQuestionFromImage = async (base64Data: string, mimeType: str
   - topic: Broad category (e.g. Mechanics, Organic Chemistry)
   - subtopic: Specific concept (e.g. Projectile Motion, Aldehydes)
   - tags: Array of relevant keywords
-  - questionText: The text of the question in LaTeX, wrapped in $ for inline and $$ for block math
-  - options: Array of 4 options in LaTeX (if MCQ), wrapped in $ for inline and $$ for block math
+  - questionText: The text of the question. ALL math expressions MUST be wrapped in $...$ delimiters (e.g., $x^2 + y^2 = r^2$). Never leave LaTeX commands like \\frac, \\sqrt outside $ delimiters.
+  - options: Array of 4 options. ALL math MUST be in $...$ delimiters.
   - correctAnswers: The correct option index (0-3) or numerical value
-  - explanation: Step-by-step solution in LaTeX, wrapped in $ for inline and $$ for block math`;
+  - explanation: Step-by-step solution. ALL math expressions MUST be wrapped in $...$ delimiters. Wrap entire equations in one pair: $F = \\frac{1}{2}mv^2$, not each symbol separately.`;
 
   const response = await ai.models.generateContent({
     model,
@@ -521,10 +548,10 @@ export const extractMultipleQuestionsFromDocument = async (base64Data: string, m
   - topic: Broad category
   - subtopic: Specific concept
   - tags: Array of relevant keywords
-  - questionText: The text of the question in LaTeX, wrapped in $ for inline and $$ for block math
-  - options: Array of 4 options in LaTeX (if MCQ), wrapped in $ for inline and $$ for block math
+  - questionText: The text of the question. ALL math expressions MUST be wrapped in $...$ delimiters (e.g., $x^2 + y^2 = r^2$). Never leave LaTeX commands like \\frac, \\sqrt outside $ delimiters.
+  - options: Array of 4 options. ALL math MUST be in $...$ delimiters.
   - correctAnswers: The correct option index (0-3) or numerical value
-  - explanation: Step-by-step solution in LaTeX, wrapped in $ for inline and $$ for block math`;
+  - explanation: Step-by-step solution. ALL math expressions MUST be wrapped in $...$ delimiters. Wrap entire equations in one pair: $F = \\frac{1}{2}mv^2$, not each symbol separately.`;
 
   const response = await ai.models.generateContent({
     model,

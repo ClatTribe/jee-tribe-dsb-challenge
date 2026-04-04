@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { ExamType, ALL_EXAMS, EXAM_CONFIGS, CUET_DOMAIN_SUBJECTS, CuetDomainSubject } from '../services/examConfig';
 import { motion, AnimatePresence } from 'framer-motion';
-import { BookOpen, Stethoscope, GraduationCap, ArrowRight, ChevronDown } from 'lucide-react';
+import { BookOpen, Stethoscope, GraduationCap, ArrowRight, Check } from 'lucide-react';
 
 const examIcons: Record<ExamType, React.ReactNode> = {
   JEE: <BookOpen size={28} />,
@@ -14,22 +14,33 @@ const examIcons: Record<ExamType, React.ReactNode> = {
 const examDescriptions: Record<ExamType, string> = {
   JEE: 'Physics, Chemistry & Mathematics — for IIT/NIT aspirants',
   NEET: 'Physics, Chemistry & Biology — for medical college aspirants',
-  CUET: 'English, General Test & Domain — for central university admissions',
+  CUET: 'English, General Test & Domain Subjects — for central university admissions',
 };
 
 const ExamSelector = () => {
   const { setExam } = useAuth();
   const navigate = useNavigate();
   const [selected, setSelected] = useState<ExamType | null>(null);
-  const [cuetDomain, setCuetDomain] = useState<CuetDomainSubject | null>(null);
+  const [cuetDomains, setCuetDomains] = useState<CuetDomainSubject[]>([]);
   const [saving, setSaving] = useState(false);
 
-  const canContinue = selected && (selected !== 'CUET' || cuetDomain);
+  const canContinue = selected && (selected !== 'CUET' || cuetDomains.length > 0);
+
+  const toggleDomain = (domain: CuetDomainSubject) => {
+    setCuetDomains(prev =>
+      prev.includes(domain)
+        ? prev.filter(d => d !== domain)
+        : [...prev, domain]
+    );
+  };
 
   const handleContinue = async () => {
     if (!canContinue) return;
     setSaving(true);
-    await setExam(selected!, selected === 'CUET' ? cuetDomain! : undefined);
+    // Set the first selected domain as primary cuetDomain (for backward compatibility with daily mocks)
+    const primaryDomain = selected === 'CUET' ? cuetDomains[0] : undefined;
+    const allDomains = selected === 'CUET' ? cuetDomains : undefined;
+    await setExam(selected!, primaryDomain, allDomains);
     setSaving(false);
     navigate('/', { replace: true });
   };
@@ -69,7 +80,7 @@ const ExamSelector = () => {
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: i * 0.1 }}
-                onClick={() => { setSelected(exam); if (exam !== 'CUET') setCuetDomain(null); }}
+                onClick={() => { setSelected(exam); if (exam !== 'CUET') setCuetDomains([]); }}
                 className={`w-full flex items-center gap-4 p-5 rounded-2xl border transition-all text-left ${
                   isSelected
                     ? 'bg-amber-500/10 border-amber-500/40 shadow-lg shadow-amber-500/10'
@@ -111,7 +122,7 @@ const ExamSelector = () => {
           })}
         </div>
 
-        {/* CUET Domain Subject Picker */}
+        {/* CUET Domain Subject Picker — Multi-select */}
         <AnimatePresence>
           {selected === 'CUET' && (
             <motion.div
@@ -123,23 +134,40 @@ const ExamSelector = () => {
             >
               <div className="bg-white/[0.03] border border-white/10 rounded-2xl p-5 space-y-3">
                 <div>
-                  <p className="text-sm font-black text-white">Choose Your Domain Subject</p>
-                  <p className="text-[10px] text-slate-500 mt-1">This will be your 3rd section in daily mocks alongside English & General Test</p>
+                  <p className="text-sm font-black text-white">Choose Your Domain Subjects</p>
+                  <p className="text-[10px] text-slate-500 mt-1">
+                    Select one or more domains. First selected = your primary domain for daily mocks.
+                    {cuetDomains.length > 0 && (
+                      <span className="text-amber-400 ml-1">({cuetDomains.length} selected)</span>
+                    )}
+                  </p>
                 </div>
                 <div className="grid grid-cols-2 gap-2">
-                  {CUET_DOMAIN_SUBJECTS.map((domain) => (
-                    <button
-                      key={domain}
-                      onClick={() => setCuetDomain(domain)}
-                      className={`px-3 py-2.5 rounded-xl text-xs font-bold text-left transition-all border ${
-                        cuetDomain === domain
-                          ? 'bg-amber-500/15 border-amber-500/40 text-amber-400'
-                          : 'bg-white/[0.02] border-white/5 text-slate-400 hover:border-white/15 hover:bg-white/[0.04]'
-                      }`}
-                    >
-                      {domain}
-                    </button>
-                  ))}
+                  {CUET_DOMAIN_SUBJECTS.map((domain) => {
+                    const isSelected = cuetDomains.includes(domain);
+                    const isPrimary = cuetDomains[0] === domain;
+                    return (
+                      <button
+                        key={domain}
+                        onClick={() => toggleDomain(domain)}
+                        className={`px-3 py-2.5 rounded-xl text-xs font-bold text-left transition-all border flex items-center gap-2 ${
+                          isSelected
+                            ? 'bg-amber-500/15 border-amber-500/40 text-amber-400'
+                            : 'bg-white/[0.02] border-white/5 text-slate-400 hover:border-white/15 hover:bg-white/[0.04]'
+                        }`}
+                      >
+                        <span className={`w-4 h-4 rounded flex items-center justify-center shrink-0 border ${
+                          isSelected ? 'bg-amber-500 border-amber-500' : 'border-white/20'
+                        }`}>
+                          {isSelected && <Check size={10} className="text-[#060818]" />}
+                        </span>
+                        <span className="flex-1">{domain}</span>
+                        {isPrimary && (
+                          <span className="text-[8px] bg-amber-500/30 text-amber-300 px-1.5 py-0.5 rounded-full font-black">PRIMARY</span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </motion.div>

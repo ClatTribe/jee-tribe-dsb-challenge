@@ -3,6 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { doc, getDoc, collection, getDocs, query, where, documentId } from 'firebase/firestore';
 import { db } from '../firebase';
 import { useAuth } from '../contexts/AuthContext';
+import PaywallOverlay from '../components/PaywallOverlay';
 import { submitChallenge, checkAttempt } from '../services/db';
 import { Question, Submission, TestResult } from '../utils/evaluationUtils';
 import MathText from '../components/MathRenderer';
@@ -16,6 +17,101 @@ import { getStreakMultiplier, calculateCoinsEarned } from '../services/gamificat
 import { EXAM_CONFIGS } from '../services/examConfig';
 
 import { getDailyQuestions, Question as GeminiQuestion } from '../services/geminiService';
+
+/**
+ * Split a long explanation paragraph into logical steps for better readability.
+ * Handles: numbered steps, sentence-based splitting, and keyword-based splitting.
+ */
+function formatExplanationSteps(text: string): string[] {
+  if (!text) return [];
+
+  // If text already has newlines, split on them
+  if (text.includes('\n')) {
+    const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+    if (lines.length > 1) return lines;
+  }
+
+  // If text has numbered steps like "Step 1:", "1.", "1)", etc.
+  const numberedStepRegex = /(?:^|\.\s*)(?:Step\s*\d+[:.]\s*|(?:\d+)[.)]\s*)/gi;
+  if (numberedStepRegex.test(text)) {
+    const parts = text.split(/(?:Step\s*\d+[:.]\s*|\b(?:\d+)[.)]\s*)/gi).filter(Boolean).map(s => s.trim()).filter(Boolean);
+    if (parts.length > 1) return parts;
+  }
+
+  // Split on sentence boundaries that indicate logical steps
+  // Keywords that typically start a new step in physics/chemistry/math explanations
+  const stepKeywords = [
+    'Using ', 'Applying ', 'From ', 'By ', 'Since ', 'Now,', 'Now ', 'Next,', 'Next ',
+    'Therefore,', 'Therefore ', 'Thus,', 'Thus ', 'Hence,', 'Hence ', 'So,', 'So ',
+    'For the', 'For this', 'Substituting', 'Putting', 'We get', 'We have', 'We know',
+    'This gives', 'This means', 'This implies', 'The ', 'Let ', 'Given',
+    'After ', 'Before ', 'When ', 'If ', 'At ', 'In ',
+    'Conservation of', 'According to', 'Comparing',
+    'Divid', 'Multiply', 'Squaring', 'Taking', 'Rearranging', 'Simplifying',
+    'The condition', 'The problem', 'The equation', 'The velocity', 'The energy',
+    'The kinetic', 'The potential', 'The total', 'The net', 'The final', 'The initial',
+    "Let's",
+  ];
+
+  // Try splitting on periods followed by a step keyword
+  const steps: string[] = [];
+  let remaining = text;
+
+  while (remaining.length > 0) {
+    let bestSplit = -1;
+    let bestKeyword = '';
+
+    // Find the earliest step keyword after a sentence boundary (period + space or colon + space)
+    for (const kw of stepKeywords) {
+      // Look for ". Keyword" or ": Keyword" patterns
+      const patterns = ['. ' + kw, '.' + kw, ': ' + kw];
+      for (const pat of patterns) {
+        const idx = remaining.indexOf(pat);
+        if (idx !== -1 && idx > 15) { // minimum 15 chars for a meaningful step
+          const splitPoint = idx + (pat.startsWith('. ') ? 2 : pat.startsWith('.') ? 1 : 2);
+          if (bestSplit === -1 || splitPoint < bestSplit) {
+            bestSplit = splitPoint;
+            bestKeyword = kw;
+          }
+        }
+      }
+    }
+
+    if (bestSplit !== -1 && remaining.length - bestSplit > 10) {
+      steps.push(remaining.slice(0, bestSplit).trim());
+      remaining = remaining.slice(bestSplit).trim();
+    } else {
+      steps.push(remaining.trim());
+      break;
+    }
+  }
+
+  // If we couldn't split into multiple steps, fall back to sentence splitting
+  if (steps.length <= 1) {
+    // Split on ". " followed by uppercase letter (sentence boundary)
+    const sentences = text.split(/\.(?=\s+[A-Z])/).map((s, i, arr) =>
+      (i < arr.length - 1 ? s + '.' : s).trim()
+    ).filter(Boolean);
+
+    // Group short sentences together (min ~50 chars per step)
+    if (sentences.length > 2) {
+      const grouped: string[] = [];
+      let current = '';
+      for (const sentence of sentences) {
+        if (current.length > 0 && current.length >= 50) {
+          grouped.push(current);
+          current = sentence;
+        } else {
+          current = current ? current + ' ' + sentence : sentence;
+        }
+      }
+      if (current) grouped.push(current);
+      if (grouped.length > 1) return grouped;
+    }
+  }
+
+  return steps.length > 0 ? steps : [text];
+}
 
 const TestEngine = () => {
   const { challengeId } = useParams();
@@ -467,13 +563,13 @@ const TestEngine = () => {
                       <div className="p-3 md:p-4 rounded-xl bg-white dark:bg-black/20 border border-slate-100 dark:border-white/5">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 md:mb-2">Your Answer</p>
                         <div className="font-bold text-sm md:text-base text-slate-700 dark:text-slate-300">
-                          {isSkipped ? 'No answer' : q.questionType === 'Numerical' ? sub.numericalValue : sub.selectedOptions?.join(', ')}
+                          {isSkipped ? 'No answer' : q.questionType === 'Numerical' ? sub.numericalValue : <MathText text={sub.selectedOptions?.join(', ') || ''} />}
                         </div>
                       </div>
                       <div className="p-3 md:p-4 rounded-xl bg-white dark:bg-black/20 border border-slate-100 dark:border-white/5">
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1 md:mb-2">Correct Answer</p>
                         <div className="font-bold text-sm md:text-base text-emerald-600">
-                          {Array.isArray(q.correctAnswers) ? q.correctAnswers.join(', ') : q.correctAnswers}
+                          <MathText text={Array.isArray(q.correctAnswers) ? q.correctAnswers.join(', ') : (q.correctAnswers || '')} />
                         </div>
                       </div>
                     </div>
@@ -483,8 +579,19 @@ const TestEngine = () => {
                         <p className="text-[10px] font-black text-primary dark:text-amber-500 uppercase tracking-widest mb-2 md:mb-3 flex items-center gap-2">
                           <BookOpen size={14} /> Step-by-Step Solution
                         </p>
-                        <div className="text-sm md:text-base text-slate-600 dark:text-slate-400 leading-relaxed">
-                          <MathText text={q.explanation} />
+                        <div className="text-sm md:text-base text-slate-600 dark:text-slate-400 leading-relaxed space-y-3">
+                          {formatExplanationSteps(q.explanation).map((step, si) => (
+                            <div key={si} className="flex gap-2">
+                              {formatExplanationSteps(q.explanation).length > 1 && (
+                                <span className="text-primary dark:text-amber-500 font-bold text-xs mt-1 shrink-0">
+                                  {si + 1}.
+                                </span>
+                              )}
+                              <div className="flex-1">
+                                <MathText text={step} />
+                              </div>
+                            </div>
+                          ))}
                         </div>
                       </div>
                     )}
@@ -501,6 +608,7 @@ const TestEngine = () => {
 
   return (
     <div className="flex flex-col lg:grid lg:grid-cols-4 gap-4 md:gap-8 h-[calc(100vh-80px)] md:h-[calc(100vh-120px)] pb-4 md:pb-6 relative">
+      <PaywallOverlay />
       <div className="lg:col-span-3 flex flex-col gap-3 md:gap-6 min-h-0">
         {/* Header */}
         <div className="bg-white dark:bg-white/5 backdrop-blur-xl p-3 md:p-6 rounded-xl md:rounded-[2rem] border border-slate-200 dark:border-white/10 flex items-center justify-between shadow-sm">

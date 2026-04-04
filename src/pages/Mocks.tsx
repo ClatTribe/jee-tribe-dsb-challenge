@@ -80,46 +80,51 @@ const Mocks = () => {
   ];
 
   const getThemeClasses = (theme: string) => {
-    const themes: Record<string, { border: string; bg: string; glow: string; hover: string; icon: string; subtitle: string }> = {
+    const themes: Record<string, { border: string; bg: string; glow: string; hover: string; icon: string; subtitle: string; leftBorder: string }> = {
       amber: {
         border: 'border-amber-200 dark:border-amber-500/30',
         bg: 'bg-white dark:bg-amber-500/5',
         glow: 'shadow-amber-100 dark:shadow-amber-500/20',
-        hover: 'hover:border-amber-400 dark:hover:border-amber-500/60 hover:shadow-lg',
+        hover: 'hover:border-amber-300 dark:hover:border-amber-500/50 hover:shadow-xl hover:scale-105',
         icon: 'bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400',
         subtitle: 'text-amber-600 dark:text-amber-300',
+        leftBorder: 'border-l-4 border-l-amber-500 dark:border-l-amber-400',
       },
       red: {
         border: 'border-red-200 dark:border-red-500/30',
         bg: 'bg-white dark:bg-red-500/5',
         glow: 'shadow-red-100 dark:shadow-red-500/20',
-        hover: 'hover:border-red-400 dark:hover:border-red-500/60 hover:shadow-lg',
+        hover: 'hover:border-red-300 dark:hover:border-red-500/50 hover:shadow-xl hover:scale-105',
         icon: 'bg-red-100 text-red-600 dark:bg-red-500/20 dark:text-red-400',
         subtitle: 'text-red-600 dark:text-red-300',
+        leftBorder: 'border-l-4 border-l-red-500 dark:border-l-red-400',
       },
       orange: {
         border: 'border-orange-200 dark:border-orange-500/30',
         bg: 'bg-white dark:bg-orange-500/5',
         glow: 'shadow-orange-100 dark:shadow-orange-500/20',
-        hover: 'hover:border-orange-400 dark:hover:border-orange-500/60 hover:shadow-lg',
+        hover: 'hover:border-orange-300 dark:hover:border-orange-500/50 hover:shadow-xl hover:scale-105',
         icon: 'bg-orange-100 text-orange-600 dark:bg-orange-500/20 dark:text-orange-400',
         subtitle: 'text-orange-600 dark:text-orange-300',
+        leftBorder: 'border-l-4 border-l-orange-500 dark:border-l-orange-400',
       },
       purple: {
         border: 'border-purple-200 dark:border-purple-500/30',
         bg: 'bg-white dark:bg-purple-500/5',
         glow: 'shadow-purple-100 dark:shadow-purple-500/20',
-        hover: 'hover:border-purple-400 dark:hover:border-purple-500/60 hover:shadow-lg',
+        hover: 'hover:border-purple-300 dark:hover:border-purple-500/50 hover:shadow-xl hover:scale-105',
         icon: 'bg-purple-100 text-purple-600 dark:bg-purple-500/20 dark:text-purple-400',
         subtitle: 'text-purple-600 dark:text-purple-300',
+        leftBorder: 'border-l-4 border-l-purple-500 dark:border-l-purple-400',
       },
       green: {
         border: 'border-green-200 dark:border-green-500/30',
         bg: 'bg-white dark:bg-green-500/5',
         glow: 'shadow-green-100 dark:shadow-green-500/20',
-        hover: 'hover:border-green-400 dark:hover:border-green-500/60 hover:shadow-lg',
+        hover: 'hover:border-green-300 dark:hover:border-green-500/50 hover:shadow-xl hover:scale-105',
         icon: 'bg-green-100 text-green-600 dark:bg-green-500/20 dark:text-green-400',
         subtitle: 'text-green-600 dark:text-green-300',
+        leftBorder: 'border-l-4 border-l-green-500 dark:border-l-green-400',
       },
     };
     return themes[theme];
@@ -171,7 +176,7 @@ const Mocks = () => {
           transition={{ duration: 0.6 }}
           className="mb-8 md:mb-10"
         >
-          <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white mb-1">
+          <h1 className="text-4xl md:text-5xl font-black tracking-tight text-slate-900 dark:text-white mb-2">
             Mocks & Challenges
           </h1>
           <p className="text-slate-500 dark:text-slate-400 text-sm md:text-base">
@@ -185,16 +190,21 @@ const Mocks = () => {
             initial={{ opacity: 0, y: 30 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.6, delay: 0.1 }}
-            className="mb-8 md:mb-12"
+            className="mb-6 md:mb-8"
           >
             <motion.button
               variants={cardHoverVariants}
               whileHover="hover"
               onClick={() => handleCardClick(featuredCard.route)}
-              className={`w-full p-6 md:p-8 rounded-2xl border-2 transition-all cursor-pointer group relative overflow-hidden ${getThemeClasses(featuredCard.theme).border} ${getThemeClasses(featuredCard.theme).bg} hover:shadow-lg ${getThemeClasses(featuredCard.theme).glow} ${getThemeClasses(featuredCard.theme).hover}`}
+              className={`w-full p-6 md:p-8 rounded-2xl border-2 transition-all cursor-pointer group relative overflow-hidden bg-gradient-to-br from-amber-50 to-orange-50 dark:from-amber-500/10 dark:to-orange-500/5 ${getThemeClasses(featuredCard.theme).border} hover:shadow-2xl dark:hover:shadow-amber-500/10 ${getThemeClasses(featuredCard.theme).glow} hover:border-amber-300 dark:hover:border-amber-500/50`}
             >
-              {/* Gradient background on hover */}
-              <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+              {/* Gradient overlay on hover */}
+              <div className="absolute inset-0 bg-gradient-to-r from-amber-500/0 via-amber-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+
+              {/* TODAY Badge */}
+              <div className="absolute top-4 right-4 z-20 px-3 py-1 bg-gradient-to-r from-amber-500 to-orange-500 text-white text-xs font-bold rounded-full shadow-lg">
+                TODAY
+              </div>
 
               <div className="relative z-10 flex items-start gap-6 md:gap-8">
                 {/* Icon */}
@@ -216,8 +226,8 @@ const Mocks = () => {
                 </div>
 
                 {/* Arrow */}
-                <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-500/20 dark:text-amber-400 flex-shrink-0 group-hover:bg-amber-200 dark:group-hover:bg-amber-500/30 transition-all">
-                  <ArrowRight size={20} />
+                <div className="flex items-center justify-center w-14 h-14 rounded-xl bg-gradient-to-br from-amber-400 to-orange-500 text-white dark:from-amber-500 dark:to-orange-600 flex-shrink-0 group-hover:shadow-lg group-hover:scale-110 transition-all">
+                  <ArrowRight size={24} strokeWidth={3} />
                 </div>
               </div>
             </motion.button>
@@ -239,40 +249,40 @@ const Mocks = () => {
                 variants={itemVariants}
                 whileHover="hover"
                 onClick={() => handleCardClick(card.route)}
-                className={`p-6 rounded-2xl border-2 transition-all cursor-pointer group relative overflow-hidden text-left ${themeClasses.border} ${themeClasses.bg} hover:shadow-lg ${themeClasses.glow} ${themeClasses.hover}`}
+                className={`p-4 md:p-5 rounded-2xl border-2 transition-all cursor-pointer group relative overflow-hidden text-left ${themeClasses.border} ${themeClasses.bg} ${themeClasses.leftBorder} hover:shadow-xl ${themeClasses.glow} ${themeClasses.hover}`}
               >
                 {/* Gradient background on hover */}
                 <div className={`absolute inset-0 bg-gradient-to-br from-${card.theme}-500/0 via-${card.theme}-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
 
-                <div className="relative z-10 flex flex-col gap-4">
+                <div className="relative z-10 flex flex-col gap-3">
                   {/* Icon */}
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${themeClasses.icon}`}>
-                    <span className="text-2xl">{card.emoji}</span>
+                  <div className={`w-10 h-10 rounded-lg flex items-center justify-center flex-shrink-0 ${themeClasses.icon}`}>
+                    <span className="text-xl">{card.emoji}</span>
                   </div>
 
                   {/* Content */}
-                  <div>
-                    <h3 className="text-lg md:text-xl font-black text-slate-900 dark:text-white mb-1">
+                  <div className="flex-1">
+                    <h3 className="text-base md:text-lg font-black text-slate-900 dark:text-white mb-1">
                       {card.title}
                     </h3>
-                    <p className={`text-xs md:text-sm font-semibold mb-2 ${themeClasses.subtitle}`}>
+                    <p className={`text-xs font-semibold mb-1 ${themeClasses.subtitle}`}>
                       {card.subtitle}
                     </p>
-                    <p className="text-slate-500 dark:text-slate-400 text-xs md:text-sm">
+                    <p className="text-slate-500 dark:text-slate-400 text-xs leading-snug">
                       {card.description}
                     </p>
                   </div>
 
-                  {/* Arrow - always visible, moves on hover */}
-                  <div className={`flex items-center justify-end -mb-1 -mr-1 opacity-0 group-hover:opacity-100 transition-opacity`}>
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
-                      card.theme === 'amber' ? 'text-amber-600 dark:text-amber-400' :
-                      card.theme === 'red' ? 'text-red-600 dark:text-red-400' :
-                      card.theme === 'orange' ? 'text-orange-600 dark:text-orange-400' :
-                      card.theme === 'purple' ? 'text-purple-600 dark:text-purple-400' :
-                      'text-green-600 dark:text-green-400'
+                  {/* Arrow - visible on hover with smooth transition */}
+                  <div className={`flex items-center justify-end mt-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300`}>
+                    <div className={`w-7 h-7 rounded-md flex items-center justify-center group-hover:scale-125 transition-transform ${
+                      card.theme === 'amber' ? 'text-amber-500 dark:text-amber-400' :
+                      card.theme === 'red' ? 'text-red-500 dark:text-red-400' :
+                      card.theme === 'orange' ? 'text-orange-500 dark:text-orange-400' :
+                      card.theme === 'purple' ? 'text-purple-500 dark:text-purple-400' :
+                      'text-green-500 dark:text-green-400'
                     }`}>
-                      <ArrowRight size={16} />
+                      <ArrowRight size={18} strokeWidth={2.5} />
                     </div>
                   </div>
                 </div>

@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import { collection, getDocs, query, orderBy, limit as fbLimit } from 'firebase/firestore';
 import { db } from '../firebase';
 import { generateDailyPlan, DailyPlan } from '../services/aiService';
+import MathText from '../components/MathRenderer';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Sun, Target, Coffee, Moon, Sparkles, RefreshCw, CheckCircle2, Circle, ChevronRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -83,7 +84,9 @@ const AajKaPlan = () => {
         [...new Set(weakTopics)],
         recentHistory,
         profile.currentStreak || 0,
-        dayOfWeek
+        dayOfWeek,
+        profile.exam,
+        profile.cuetDomains || (profile.cuetDomain ? [profile.cuetDomain] : undefined)
       );
 
       setPlan(result);
@@ -197,7 +200,7 @@ const AajKaPlan = () => {
         animate={{ opacity: 1, y: 0 }}
         className="bg-gradient-to-br from-amber-500/10 to-orange-500/10 border border-amber-500/20 rounded-2xl p-5"
       >
-        <p className="text-lg font-bold text-slate-700 dark:text-slate-300">{plan.greeting}</p>
+        <div className="text-lg font-bold text-slate-700 dark:text-slate-300"><MathText text={plan.greeting} /></div>
       </motion.div>
 
       {/* Progress Bar */}
@@ -263,9 +266,9 @@ const AajKaPlan = () => {
                     </div>
                   </div>
 
-                  <p className={`text-sm text-slate-600 dark:text-slate-400 font-medium ${isCompleted ? 'line-through opacity-60' : ''}`}>
-                    {block.description}
-                  </p>
+                  <div className={`text-sm text-slate-600 dark:text-slate-400 font-medium ${isCompleted ? 'line-through opacity-60' : ''}`}>
+                    <MathText text={block.description} />
+                  </div>
 
                   {/* Topics/Subjects tags */}
                   {'topics' in block && (block as any).topics && (
@@ -317,7 +320,7 @@ const AajKaPlan = () => {
         className="bg-gradient-to-br from-violet-500/10 to-blue-500/10 border border-violet-500/20 rounded-2xl p-6 text-center"
       >
         <Sparkles size={24} className="text-violet-500 mx-auto mb-3" />
-        <p className="text-base font-bold text-slate-700 dark:text-slate-300 leading-relaxed italic">"{plan.motivationalQuote}"</p>
+        <div className="text-base font-bold text-slate-700 dark:text-slate-300 leading-relaxed italic">"<MathText text={plan.motivationalQuote} />"</div>
       </motion.div>
 
       {/* Quick Actions */}

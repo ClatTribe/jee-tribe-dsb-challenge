@@ -8,6 +8,7 @@ import MathText from '../components/MathRenderer';
 import { getDailyQuestions, Question } from '../services/geminiService';
 import { useAuth } from '../contexts/AuthContext';
 import { submitMiniGameScore, checkAttempt } from '../services/db';
+import PaywallOverlay from '../components/PaywallOverlay';
 
 const SkipStrategy = () => {
   const { profile } = useAuth();
@@ -169,6 +170,7 @@ const SkipStrategy = () => {
 
   return (
     <div className="max-w-3xl mx-auto space-y-5 md:space-y-8 pb-12 px-4 md:px-6 relative z-10">
+      <PaywallOverlay />
       <div className="flex items-center justify-between bg-white/80 dark:bg-white/5 backdrop-blur-xl p-4 md:p-6 rounded-xl md:rounded-[2.5rem] border border-slate-200/50 dark:border-white/5 shadow-2xl shadow-slate-200/20 dark:shadow-none">
         <div className="flex items-center gap-3 md:gap-4">
           <div className="w-10 h-10 md:w-14 md:h-14 bg-amber-500/10 text-amber-500 rounded-xl md:rounded-2xl flex items-center justify-center shadow-inner shrink-0">

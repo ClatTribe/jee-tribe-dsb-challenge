@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Play, X, ChevronDown, Loader, AlertCircle, RotateCcw } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import PaywallOverlay from '../components/PaywallOverlay';
 import { EXAM_CONFIGS } from '../services/examConfig';
 import {
   getTopicsForExam,
@@ -53,7 +54,17 @@ export default function LearnFlix() {
   }, [playingVideo]);
 
   // Get subjects for the user's exam
-  const subjects = profile?.exam ? EXAM_CONFIGS[profile.exam]?.subjects || [] : [];
+  const subjects = React.useMemo(() => {
+    if (!profile?.exam) return [];
+    const base = EXAM_CONFIGS[profile.exam]?.subjects || [];
+    if (profile.exam === 'CUET') {
+      // Replace generic 'Domain Subject' with user's actual selected domains
+      const filtered = base.filter(s => s !== 'Domain Subject');
+      const domains = profile.cuetDomains || (profile.cuetDomain ? [profile.cuetDomain] : []);
+      return [...filtered, ...domains];
+    }
+    return base;
+  }, [profile?.exam, profile?.cuetDomains, profile?.cuetDomain]);
 
   const subjectEmojis: Record<string, string> = {
     Physics: '🔬',
@@ -62,6 +73,15 @@ export default function LearnFlix() {
     Biology: '🧬',
     English: '📖',
     'General Test': '📋',
+    Economics: '💰',
+    'Business Studies': '📊',
+    Accountancy: '📒',
+    'Political Science': '🏛️',
+    Psychology: '🧠',
+    Sociology: '👥',
+    History: '📜',
+    Geography: '🌍',
+    'Computer Science': '💻',
   };
 
   // Initialize with first subject
@@ -165,6 +185,7 @@ export default function LearnFlix() {
 
   return (
     <div className="px-4 py-4 md:py-8">
+      <PaywallOverlay />
       <div className="max-w-6xl mx-auto">
         {/* Header Section */}
         <motion.div
@@ -176,41 +197,44 @@ export default function LearnFlix() {
             <h1 className="text-3xl md:text-4xl font-black tracking-tight text-slate-900 dark:text-white">
               LearnFlix
             </h1>
-            <motion.div
-              animate={{ scale: [1, 1.2, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 rounded-full"
-            >
-              <div className="w-2 h-2 bg-white rounded-full" />
-              <span className="text-xs font-semibold text-white">LIVE</span>
-            </motion.div>
+            <div className="text-sm font-semibold text-amber-600 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 px-3 py-1.5 rounded-full">
+              250+ videos
+            </div>
           </div>
           <p className="text-sm md:text-base text-slate-500 dark:text-slate-400">
             {profile?.exam} — Learn from top educators, chapter by chapter
           </p>
         </motion.div>
 
+        {/* YouTube Disclaimer */}
+        <div className="mb-4 px-4 py-2.5 bg-slate-100 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700 flex items-start gap-2">
+          <AlertCircle className="w-4 h-4 text-slate-400 mt-0.5 flex-shrink-0" />
+          <p className="text-xs text-slate-500 dark:text-slate-400">
+            Videos are curated from YouTube for your learning. PrepTribe does not own or produce these videos.
+          </p>
+        </div>
+
         {/* Subject Tabs */}
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.1 }}
-          className="mb-8 border-b border-slate-200 dark:border-slate-700 overflow-x-auto"
+          className="mb-8 overflow-x-auto"
         >
-          <div className="flex gap-8 pb-4">
+          <div className="flex gap-3 pb-2">
             {subjects.map((subject) => (
               <motion.button
                 key={subject}
                 onClick={() => setSelectedSubject(subject)}
-                className={`text-lg font-semibold pb-3 whitespace-nowrap transition-colors ${
+                className={`px-4 py-2 rounded-full whitespace-nowrap font-semibold transition-all duration-200 flex items-center gap-2 ${
                   selectedSubject === subject
-                    ? 'text-slate-900 dark:text-white border-b-2 border-amber-500'
-                    : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-200'
+                    ? 'bg-amber-500 text-white shadow-md shadow-amber-500/30'
+                    : 'bg-transparent text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
                 }`}
                 whileHover={{ y: -2 }}
                 whileTap={{ y: 0 }}
               >
-                <span className="mr-2">{subjectEmojis[subject] || '📚'}</span>
+                <span>{subjectEmojis[subject] || '📚'}</span>
                 {subject}
               </motion.button>
             ))}
@@ -259,7 +283,7 @@ export default function LearnFlix() {
           </motion.div>
         ) : (
           /* Chapters Accordion List */
-          <motion.div className="space-y-3">
+          <motion.div className="space-y-2">
             <AnimatePresence mode="popLayout">
               {chapters.map((chapter, idx) => (
                 <motion.div
@@ -268,24 +292,33 @@ export default function LearnFlix() {
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: -10 }}
                   transition={{ delay: idx * 0.05 }}
+                  className={`rounded-lg transition-colors ${
+                    idx % 2 === 1 ? 'bg-slate-50/50 dark:bg-slate-900/30' : ''
+                  }`}
                 >
                   {/* Chapter Header */}
                   <button
                     onClick={() => handleExpandChapter(chapter)}
-                    className="w-full bg-white dark:bg-slate-800 p-4 rounded-lg border border-slate-200 dark:border-slate-700 hover:border-amber-400 dark:hover:border-amber-500 transition-all duration-200 flex items-center justify-between group"
+                    className={`w-full p-4 rounded-lg border-l-4 transition-all duration-200 flex items-center justify-between group ${
+                      expandedChapter === chapter.id
+                        ? 'bg-amber-50 dark:bg-amber-900/20 border-l-amber-500 border border-amber-200 dark:border-amber-800'
+                        : 'bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 border-l-transparent hover:border-slate-300 dark:hover:border-slate-600 hover:border-l-amber-400'
+                    }`}
                   >
                     <div className="flex items-center gap-4 text-left flex-1">
-                      <div className="w-8 h-8 rounded-full bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-sm font-bold text-amber-700 dark:text-amber-400 flex-shrink-0">
+                      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-amber-400 to-amber-600 flex items-center justify-center text-sm font-bold text-white flex-shrink-0 shadow-md">
                         {idx + 1}
                       </div>
                       <div className="flex-1">
-                        <h3 className="font-semibold text-slate-900 dark:text-white text-lg">
+                        <h3 className="font-semibold text-slate-900 dark:text-white text-base">
                           {chapter.name}
                         </h3>
-                        <p className="text-sm text-slate-500 dark:text-slate-400">
+                        <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">
                           {chapterVideos[chapter.id]
                             ? `${chapterVideos[chapter.id].length} videos ready`
-                            : 'Loading...'}
+                            : expandedChapter === chapter.id
+                            ? 'Loading videos...'
+                            : 'Click to load videos'}
                         </p>
                       </div>
                     </div>
@@ -294,7 +327,7 @@ export default function LearnFlix() {
                         rotate: expandedChapter === chapter.id ? 180 : 0,
                       }}
                       transition={{ duration: 0.2 }}
-                      className="flex-shrink-0"
+                      className="flex-shrink-0 ml-3"
                     >
                       <ChevronDown className="w-5 h-5 text-slate-600 dark:text-slate-400 group-hover:text-amber-500 transition-colors" />
                     </motion.div>

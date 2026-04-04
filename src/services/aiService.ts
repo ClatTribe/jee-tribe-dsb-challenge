@@ -1,4 +1,5 @@
 import { GoogleGenAI } from "@google/genai";
+import { ExamType, EXAM_CONFIGS } from './examConfig';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
 
@@ -65,9 +66,17 @@ export const generateWeeklyReport = async (
   userName: string,
   historyData: any[],
   currentStreak: number,
-  totalXP: number
+  totalXP: number,
+  exam?: ExamType,
+  cuetDomains?: string[]
 ): Promise<WeeklyReport> => {
   const model = "gemini-2.5-flash-lite";
+  const examType = exam || 'JEE';
+  const config = EXAM_CONFIGS[examType];
+  let subjects = config.subjects.join('/');
+  if (examType === 'CUET' && cuetDomains && cuetDomains.length > 0) {
+    subjects = ['English', 'General Test', ...cuetDomains].join('/');
+  }
 
   // Prepare history summary for the AI
   const historySummary = historyData.map(h => ({
@@ -80,9 +89,11 @@ export const generateWeeklyReport = async (
     date: h.completedAt?.toDate?.()?.toISOString?.() || h.completedAt || 'unknown'
   }));
 
-  const prompt = `You are an expert JEE Mains coach analyzing a student's weekly performance data.
+  const prompt = `You are an expert ${config.fullName} coach analyzing a student's weekly performance data.
 
 Student: ${userName}
+Exam: ${config.fullName}
+Subjects: ${subjects}
 Current Streak: ${currentStreak} days
 Total XP: ${totalXP}
 
@@ -90,6 +101,8 @@ Last 7 days attempt history (JSON):
 ${JSON.stringify(historySummary, null, 2)}
 
 Analyze this data and generate a weekly diagnosis report. Be encouraging but honest. Use a mix of English and Hindi (Hinglish) naturally — like a caring teacher would talk to their student. Keep it conversational and motivating.
+
+IMPORTANT: This student is preparing for ${config.fullName}. Only analyze subjects relevant to ${config.fullName}: ${subjects}. Do NOT mention JEE/NEET subjects if the exam is different.
 
 Return a JSON object with this EXACT structure:
 {
@@ -99,7 +112,7 @@ Return a JSON object with this EXACT structure:
   "weaknesses": ["weakness1", "weakness2"],
   "subjectAnalysis": [
     {
-      "subject": "Physics/Chemistry/Mathematics",
+      "subject": "one of: ${subjects}",
       "grade": "A-F",
       "accuracy": 0.75,
       "trend": "improving/declining/stable",
@@ -114,7 +127,7 @@ Return a JSON object with this EXACT structure:
   "motivationalNote": "A personal, warm message in Hinglish"
 }
 
-If data is sparse, still provide helpful analysis based on whatever is available. Never leave arrays empty — always give at least general JEE prep advice.`;
+If data is sparse, still provide helpful analysis based on whatever is available. Never leave arrays empty — always give at least general ${config.fullName} prep advice.`;
 
   try {
     const response = await ai.models.generateContent({
@@ -142,15 +155,11 @@ function getDefaultReport(userName: string): WeeklyReport {
     overallMessage: `${userName}, is hafte ka data thoda kam hai but you're showing up — that's what matters! Keep the momentum going.`,
     strengths: ['Consistent daily practice', 'Good attempt rate'],
     weaknesses: ['Need more practice in weak areas', 'Time management can improve'],
-    subjectAnalysis: [
-      { subject: 'Physics', grade: 'B', accuracy: 0.6, trend: 'stable', weakTopics: ['Mechanics', 'Electrostatics'], strongTopics: ['Optics'], tip: 'Focus on free body diagrams for Mechanics problems.' },
-      { subject: 'Chemistry', grade: 'B', accuracy: 0.65, trend: 'stable', weakTopics: ['Organic Chemistry'], strongTopics: ['Physical Chemistry'], tip: 'Revise named reactions daily — 10 mins is enough.' },
-      { subject: 'Mathematics', grade: 'B', accuracy: 0.55, trend: 'stable', weakTopics: ['Calculus', 'Coordinate Geometry'], strongTopics: ['Algebra'], tip: 'Practice integration by parts and substitution daily.' }
-    ],
+    subjectAnalysis: [],
     errorPatterns: ['Rushing through calculations', 'Not reading questions carefully'],
-    timeAnalysis: 'Try to spend equal time across all three subjects.',
-    nextWeekFocus: ['Revise weak topics from this week', 'Attempt at least 1 full mock', 'Focus on speed in Mathematics'],
-    motivationalNote: `${userName}, yaad rakh — JEE topper bhi ek din beginner tha. Tu kar sakta hai! 💪🔥`
+    timeAnalysis: 'Try to spend equal time across all subjects.',
+    nextWeekFocus: ['Revise weak topics from this week', 'Attempt at least 1 full mock', 'Focus on accuracy'],
+    motivationalNote: `${userName}, yaad rakh — topper bhi ek din beginner tha. Tu kar sakta hai! 💪🔥`
   };
 }
 
@@ -161,17 +170,30 @@ export const generateDailyPlan = async (
   weakTopics: string[],
   recentHistory: any[],
   currentStreak: number,
-  dayOfWeek: string
+  dayOfWeek: string,
+  exam?: ExamType,
+  cuetDomains?: string[]
 ): Promise<DailyPlan> => {
   const model = "gemini-2.5-flash-lite";
+  const examType = exam || 'JEE';
+  const config = EXAM_CONFIGS[examType];
+  let subjects = config.subjects;
+  if (examType === 'CUET' && cuetDomains && cuetDomains.length > 0) {
+    subjects = ['English', 'General Test', ...cuetDomains];
+  }
+  const subjectsStr = subjects.join(', ');
 
-  const prompt = `You are a caring JEE coach creating a personalized daily study plan.
+  const prompt = `You are a caring ${config.fullName} coach creating a personalized daily study plan.
 
 Student: ${userName}
+Exam: ${config.fullName}
+Subjects: ${subjectsStr}
 Day: ${dayOfWeek}
 Current Streak: ${currentStreak} days
 Weak Topics: ${weakTopics.join(', ') || 'General revision needed'}
 Recent Performance: ${recentHistory.length} attempts in last 3 days
+
+IMPORTANT: This student is preparing for ${config.fullName}, NOT JEE or any other exam. Only use subjects from: ${subjectsStr}. Do NOT suggest Physics/Chemistry/Mathematics if the exam is CUET (unless those are the student's chosen domain subjects).
 
 Create a realistic, achievable daily plan. Use Hinglish naturally. Be warm and motivating like a big brother/sister guiding them.
 
@@ -195,7 +217,7 @@ Return a JSON object with this EXACT structure:
     "description": "What to do",
     "duration": "45 min",
     "subjects": [
-      { "subject": "Physics", "topics": ["Mechanics"], "questionCount": 10 }
+      { "subject": "one of ${subjectsStr}", "topics": ["relevant topic"], "questionCount": 10 }
     ]
   },
   "afternoonTarget": {
@@ -247,9 +269,8 @@ function getDefaultPlan(userName: string, dayOfWeek: string): DailyPlan {
       description: 'Deep problem-solving session. Focus on understanding concepts, not just answers.',
       duration: '45 min',
       subjects: [
-        { subject: 'Physics', topics: ['Mechanics', 'Electrostatics'], questionCount: 8 },
-        { subject: 'Chemistry', topics: ['Organic Chemistry'], questionCount: 6 },
-        { subject: 'Mathematics', topics: ['Calculus'], questionCount: 8 }
+        { subject: 'Your weakest subject', topics: ['Weak topics'], questionCount: 10 },
+        { subject: 'Mixed practice', topics: ['All subjects'], questionCount: 12 }
       ]
     },
     afternoonTarget: {

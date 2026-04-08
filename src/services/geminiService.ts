@@ -3,7 +3,8 @@ import { doc, getDoc, setDoc } from "firebase/firestore";
 import { db } from "../firebase";
 import { ExamType, getExamConfig, DEFAULT_EXAM } from './examConfig';
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || "" });
+const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY || "" });
+// console.log('API KEY:', import.meta.env.VITE_GEMINI_API_KEY);
 
 export interface Question {
   id: string;
@@ -467,7 +468,7 @@ export const getDailyQuestions = async (exam: ExamType = DEFAULT_EXAM, cuetDomai
   // 3. Generate and Save (First user of the day)
   // Use a per-exam promise lock to prevent parallel generation
   const promiseKey = docKey; // exam-specific key so JEE/NEET/CUET don't share
-  if (generationPromises[promiseKey]) {
+  if (promiseKey in generationPromises) {
     try {
       return await withTimeout(generationPromises[promiseKey], 100_000, 'Pending generation wait');
     } catch (e) {
@@ -510,7 +511,7 @@ export const getDailyQuestions = async (exam: ExamType = DEFAULT_EXAM, cuetDomai
     }
   })();
 
-  return generationPromises[promiseKey];
+  return await generationPromises[promiseKey];
 };
 
 export const extractQuestionFromImage = async (base64Data: string, mimeType: string) => {

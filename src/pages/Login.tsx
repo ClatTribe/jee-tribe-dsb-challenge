@@ -50,7 +50,7 @@ const Hero = ({ onJoin, onExplore, loading }: { onJoin: () => void, onExplore: (
           India's Premium Prep Circle
         </div>
         
-        <p className="text-2xl md:text-3xl font-medium text-gray-300 mb-3">Ab Sapne Honge Sachi.</p>
+        <p className="text-2xl md:text-3xl font-medium text-gray-300 mb-3">Ab Sapne Honge Sach.</p>
         <h1 className="text-5xl lg:text-7xl font-extrabold leading-[1.1] mb-6 tracking-tight">
           <span className="block text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-400 mb-2">Ambition से</span>
           <span className="block text-[#FE9900]">Admission तक</span>

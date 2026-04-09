@@ -14,7 +14,7 @@ const CURRENT_PRODUCT = "preptribe";
 const PRODUCTS = [
   { id: "edunext", label: "EduNext", url: "https://getedunext.com" },
   { id: "preptribe", label: "PrepTribe", url: "https://jeetribechallenge.getedunext.com" },
-  { id: "schooltribe", label: "SchoolTribe", url: "https://vidyaa-rho.vercel.app" },
+  { id: "schooltribe", label: "SchoolTribe", url: "https://schooltribe.getedunext.com/" },
 ];
 
 const NAV_LINKS = [

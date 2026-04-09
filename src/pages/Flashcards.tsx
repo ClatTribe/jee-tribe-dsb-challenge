@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import MathText from '../components/MathRenderer';
 import { RefreshCw, ChevronLeft, ChevronRight, Book, Zap, CheckCircle2, Trophy, Loader2 } from 'lucide-react';
@@ -10,11 +10,14 @@ const Flashcards = () => {
   const { profile } = useAuth();
   const [questions, setQuestions] = useState<Question[]>([]);
   const [loading, setLoading] = useState(true);
+  const fetchedRef = useRef(false);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isFlipped, setIsFlipped] = useState(false);
   const [mastered, setMastered] = useState<number[]>([]);
 
   useEffect(() => {
+    if (fetchedRef.current) return; // ADD THIS
+    fetchedRef.current = true;      // ADD THIS
     const fetchQuestions = async () => {
       try {
         const daily = await getDailyQuestions(profile?.exam, profile?.cuetDomain);

@@ -215,24 +215,50 @@ EXPLANATION FORMAT RULES:
   - Example: "Step 1: Identify the given values.\\nWe have $m = 2$ kg and $v = 5$ m/s.\\nStep 2: Apply conservation of energy.\\n$\\frac{1}{2}mv^2 = mgh$\\nStep 3: Solve for $h$.\\n$h = \\frac{v^2}{2g} = \\frac{25}{20} = 1.25$ m"
   - DO NOT write the entire explanation as one long paragraph.`;
 
-const MODEL = "gemini-2.5-flash";
+const DEFAULT_MODEL = "gemini-2.5-flash";
+// Only use flash models — pro requires thinkingBudget > 0 which conflicts with our structured output config
+const FALLBACK_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
 
-// Retry wrapper — retries with different seed on parse failure
-async function withRetry<T>(fn: (seed: number) => Promise<T>, baseSeed: number, maxRetries = 2): Promise<T> {
+// Returns thinkingConfig only for models that support disabling thinking (flash variants)
+function getThinkingConfig(model: string): { thinkingBudget: number } | undefined {
+  if (model.includes('flash')) return { thinkingBudget: 0 };
+  return undefined; // pro and other models use default thinking
+}
+
+// Retry wrapper — retries with exponential backoff on 503/overload errors
+async function withRetry<T>(fn: (seed: number, model: string) => Promise<T>, baseSeed: number, maxRetries = 5): Promise<T> {
   let lastError: Error | null = null;
+  let delay = 4000;
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    const modelToUse = FALLBACK_MODELS[attempt % FALLBACK_MODELS.length];
     try {
-      return await fn(baseSeed + (attempt * 100));
+      if (attempt > 0) {
+        console.log(`Waiting ${Math.round(delay)}ms before attempt ${attempt + 1}...`);
+        await new Promise(r => setTimeout(r, delay));
+        delay = Math.min(delay * 1.5, 30000); // cap at 30s
+      }
+      return await fn(baseSeed + (attempt * 100), modelToUse);
     } catch (e: any) {
       lastError = e;
-      console.warn(`Attempt ${attempt + 1} failed: ${e.message}. ${attempt < maxRetries ? 'Retrying...' : 'No more retries.'}`);
+      const code = e?.message?.match(/"code":(\d+)/)?.[1];
+      // If we get an auth error (401/403) or bad request (400), don't retry at all
+      if (code && ['400', '401', '403'].includes(code)) {
+        console.error(`Fatal error (${code}) with ${modelToUse}. Stopping.`);
+        throw e;
+      }
+      // If the model is 404 (Not Found), just log it and move to the next model
+      if (code === '404') {
+        console.warn(`Model ${modelToUse} returned 404 Not Found. Skipping to next fallback.`);
+        continue;
+      }
+      console.warn(`Attempt ${attempt + 1} with ${modelToUse} failed: ${e.message}. ${attempt < maxRetries ? 'Retrying...' : 'No more retries.'}`);
     }
   }
   throw lastError;
 }
 
 // Generate Mini Mock questions (12 questions) — the critical path
-async function generateMiniMock(dateStr: string, seed: number, exam: ExamType, cuetDomain?: string): Promise<Question[]> {
+async function generateMiniMock(dateStr: string, seed: number, exam: ExamType, cuetDomain: string | undefined, model: string): Promise<Question[]> {
   const config = getExamConfig(exam);
   let basePrompt = config.miniMockPrompt;
   // If CUET with a specific domain, replace generic "Domain Subject" references
@@ -244,14 +270,15 @@ async function generateMiniMock(dateStr: string, seed: number, exam: ExamType, c
   ${LATEX_INSTRUCTIONS}
   Today's date is ${dateStr}. Generate unique questions.`;
 
+  const thinkingConfig = getThinkingConfig(model);
   const response = await withTimeout(
     ai.models.generateContent({
-      model: MODEL,
+      model: model,
       contents: prompt,
       config: {
         seed: seed,
         maxOutputTokens: 65536,
-        thinkingConfig: { thinkingBudget: 0 },
+        ...(thinkingConfig ? { thinkingConfig } : {}),
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -271,7 +298,7 @@ async function generateMiniMock(dateStr: string, seed: number, exam: ExamType, c
 }
 
 // Generate secondary mode questions (flashcards, sudden death, skip/solve, duels)
-async function generateSecondaryQuestions(dateStr: string, seed: number, exam: ExamType, cuetDomain?: string): Promise<{
+async function generateSecondaryQuestions(dateStr: string, seed: number, exam: ExamType, cuetDomain: string | undefined, model: string): Promise<{
   flashcards: Question[];
   suddenDeath: Question[];
   skipOrSolve: (Question & { isTrap: boolean })[];
@@ -289,14 +316,15 @@ async function generateSecondaryQuestions(dateStr: string, seed: number, exam: E
   ${LATEX_INSTRUCTIONS}
   Today's date is ${dateStr}. Generate unique questions.`;
 
+  const thinkingConfig = getThinkingConfig(model);
   const response = await withTimeout(
     ai.models.generateContent({
-      model: MODEL,
+      model: model,
       contents: prompt,
       config: {
         seed: seed + 1,
         maxOutputTokens: 65536,
-        thinkingConfig: { thinkingBudget: 0 },
+        ...(thinkingConfig ? { thinkingConfig } : {}),
         responseMimeType: "application/json",
         responseSchema: {
           type: Type.OBJECT,
@@ -328,8 +356,8 @@ export const generateQuestionsForDate = async (dateStr: string, exam: ExamType =
 
   // Run both calls in parallel with retry logic
   const [miniMock, secondary] = await Promise.all([
-    withRetry((s) => generateMiniMock(dateStr, s, exam, cuetDomain), seed),
-    withRetry((s) => generateSecondaryQuestions(dateStr, s, exam, cuetDomain), seed),
+    withRetry((s, m) => generateMiniMock(dateStr, s, exam, cuetDomain, m), seed),
+    withRetry((s, m) => generateSecondaryQuestions(dateStr, s, exam, cuetDomain, m), seed),
   ]);
 
   return {
@@ -515,7 +543,7 @@ export const getDailyQuestions = async (exam: ExamType = DEFAULT_EXAM, cuetDomai
 };
 
 export const extractQuestionFromImage = async (base64Data: string, mimeType: string) => {
-  const model = MODEL;
+  const model = DEFAULT_MODEL;
   const prompt = `Extract the question from this image. Return a JSON object with:
   - subject: Identify the subject of the question (e.g., Physics, Chemistry, Mathematics, Biology, English, etc.)
   - questionType: "Single MCQ", "Multi MCQ", "Numerical", or "Fill in the Blanks"
@@ -541,7 +569,7 @@ export const extractQuestionFromImage = async (base64Data: string, mimeType: str
 };
 
 export const extractMultipleQuestionsFromDocument = async (base64Data: string, mimeType: string) => {
-  const model = MODEL;
+  const model = DEFAULT_MODEL;
   const prompt = `Extract all questions from this document. Return a JSON array of objects, each with:
   - subject: Identify the subject of the question (e.g., Physics, Chemistry, Mathematics, Biology, English, etc.)
   - questionType: "Single MCQ", "Multi MCQ", "Numerical", or "Fill in the Blanks"

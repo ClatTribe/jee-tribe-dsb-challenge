@@ -60,7 +60,7 @@ const Hero = ({ onJoin, onExplore, loading }: { onJoin: () => void, onExplore: (
           Crack <RotatingText words={['JEE', 'NEET', 'CUET']} className="text-white font-bold" /> for just <strong className="text-white font-bold">₹999/month</strong>. Supercharge your prep with <RotatingText words={['Best mocks', '24/7 AI Tutor', 'Peer Learning']} className="text-[#FE9900] font-bold" />.
         </p>
         
-        <div className="flex flex-col sm:flex-row gap-4">
+        <div className="flex flex-col sm:flex-row gap-4"> 
           <button 
             onClick={onJoin}
             disabled={loading}

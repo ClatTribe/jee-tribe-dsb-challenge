@@ -57,7 +57,7 @@ const Hero = ({ onJoin, onExplore, loading }: { onJoin: () => void, onExplore: (
         </h1>
         
         <p className="text-xl text-gray-400 mb-10 max-w-lg leading-relaxed">
-          Crack <RotatingText words={['JEE', 'NEET', 'CUET']} className="text-white font-bold" /> for just <strong className="text-white font-bold">₹99/month</strong>. Supercharge your prep with <RotatingText words={['Best mocks', '24/7 AI Tutor', 'Peer Learning']} className="text-[#FE9900] font-bold" />.
+          Crack <RotatingText words={['JEE', 'NEET', 'CUET']} className="text-white font-bold" /> for just <strong className="text-white font-bold">₹999/month</strong>. Supercharge your prep with <RotatingText words={['Best mocks', '24/7 AI Tutor', 'Peer Learning']} className="text-[#FE9900] font-bold" />.
         </p>
         
         <div className="flex flex-col sm:flex-row gap-4">

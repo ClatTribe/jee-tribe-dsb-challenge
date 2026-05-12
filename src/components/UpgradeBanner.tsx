@@ -20,7 +20,7 @@ export default function UpgradeBanner() {
         {isLocked
           ? 'Your free trial has ended.'
           : `${daysLeft} day${daysLeft !== 1 ? 's' : ''} left in your free trial.`}
-        {' '}Upgrade to PrepTribe Pro at just ₹99!
+        {' '}Upgrade to PrepTribe Pro at just ₹999!
       </span>
       <a
         href={RAZORPAY_LINK}

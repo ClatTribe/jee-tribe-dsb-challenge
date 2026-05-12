@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 
-const RAZORPAY_LINK = 'https://pages.razorpay.com/preptribe';
+const RAZORPAY_LINK = 'https://rzp.io/rzp/vYK7uvnw';
 const FREE_TRIAL_DAYS = 2;
 
 export function usePaywall() {

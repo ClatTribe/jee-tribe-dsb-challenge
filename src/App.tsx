@@ -80,7 +80,7 @@ interface Product { id: string; label: string; url: string; }
 const PRODUCTS: Product[] = [
   { id: "edunext",     label: "EduNext",     url: "https://getedunext.com" },
   { id: "preptribe",   label: "PrepTribe",   url: "https://jeetribechallenge.getedunext.com" },
-  { id: "schooltribe", label: "SchoolTribe", url: "https://vidyaa-rho.vercel.app" },
+  { id: "schooltribe", label: "SchoolTribe", url: "https://schooltribe.getedunext.com/login" },
 ];
 
 // ─── NAV LINKS (per role) ────────────────────────────────────

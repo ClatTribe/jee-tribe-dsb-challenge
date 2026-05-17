@@ -57,7 +57,7 @@ const Hero = ({ onJoin, onExplore, loading }: { onJoin: () => void, onExplore: (
         </h1>
         
         <p className="text-xl text-gray-400 mb-10 max-w-lg leading-relaxed">
-          Crack <RotatingText words={['JEE', 'NEET', 'CUET']} className="text-white font-bold" /> for just <strong className="text-white font-bold">₹999/month</strong>. Supercharge your prep with <RotatingText words={['Best mocks', '24/7 AI Tutor', 'Peer Learning']} className="text-[#FE9900] font-bold" />.
+          Crack <RotatingText words={['JEE', 'NEET', 'CUET']} className="text-white font-bold" /> for just <strong className="text-white font-bold">₹999</strong>. Supercharge your prep with <RotatingText words={['Best mocks', '24/7 AI Tutor', 'Peer Learning']} className="text-[#FE9900] font-bold" />.
         </p>
         
         <div className="flex flex-col sm:flex-row gap-4"> 
@@ -269,8 +269,8 @@ const Pricing = React.forwardRef<HTMLElement, { onJoin: () => void, loading: boo
           </div>
           <div className="flex items-start justify-center gap-1 mb-6">
             <span className="text-3xl font-bold text-gray-400 mt-2">₹</span>
-            <span className="text-8xl font-black text-white tracking-tighter">99</span>
-            <span className="text-xl text-gray-500 mt-auto mb-2 font-medium">/month</span>
+            <span className="text-8xl font-black text-white tracking-tighter">999</span>
+            {/* <span className="text-xl text-gray-500 mt-auto mb-2 font-medium">/month</span> */}
           </div>
           <p className="text-gray-300 mb-10 font-medium">Full access to JEE, NEET, and CUET modules</p>
           <ul className="space-y-5 text-left mb-12">
